@@ -72,6 +72,26 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                     <InputError className="mt-2" message={errors.email} />
                                 </div>
 
+                                <div className="grid gap-2">
+                                    <Label htmlFor="matchplay_api_token">Matchplay API Token</Label>
+
+                                    <Input
+                                        id="matchplay_api_token"
+                                        type="password"
+                                        className="mt-1 block w-full"
+                                        defaultValue={auth.user.matchplay_api_token || ""}
+                                        name="matchplay_api_token"
+                                        autoComplete="off"
+                                        placeholder="Paste your Matchplay API token here"
+                                    />
+
+                                    <InputError className="mt-2" message={errors.matchplay_api_token} />
+                                    
+                                    <p className="text-sm text-muted-foreground">
+                                        Get your API token from your Matchplay account settings. This is required to create tournaments.
+                                    </p>
+                                </div>
+
                                 {mustVerifyEmail && auth.user.email_verified_at === null && (
                                     <div>
                                         <p className="-mt-4 text-sm text-muted-foreground">

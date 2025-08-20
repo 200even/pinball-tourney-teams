@@ -139,3 +139,84 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* iPad and Touch Optimizations */
+@layer utilities {
+    /* Larger touch targets for mobile/tablet */
+    .touch-target {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Smooth scrolling for better mobile experience */
+    .smooth-scroll {
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
+    }
+
+    /* Remove tap highlights on iOS */
+    .no-tap-highlight {
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Better text selection on touch devices */
+    .touch-text {
+        -webkit-user-select: text;
+        user-select: text;
+    }
+
+    /* Prevent zoom on double tap */
+    .no-zoom {
+        touch-action: manipulation;
+    }
+}
+
+/* Global touch optimizations */
+* {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+/* Make buttons more touch-friendly */
+button, 
+[role="button"], 
+input[type="submit"], 
+input[type="button"] {
+    min-height: 44px;
+    min-width: 44px;
+}
+
+/* Smooth scrolling for all scrollable areas */
+html {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+/* iPad specific media queries */
+@media (max-width: 1024px) and (pointer: coarse) {
+    /* Increase padding for better touch interactions */
+    .container {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+    
+    /* Larger cards on touch devices */
+    [data-card] {
+        padding: 1.5rem;
+    }
+    
+    /* Better spacing for forms */
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+}
+
+/* Focus styles optimized for accessibility */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+}

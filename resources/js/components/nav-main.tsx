@@ -1,18 +1,37 @@
 import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
-import { type NavItem } from '@/types';
+import { Icon } from '@/components/ui/icon';
 import { Link, usePage } from '@inertiajs/react';
 
-export function NavMain({ items = [] }: { items: NavItem[] }) {
+const tournamentNavItems = [
+    {
+        title: 'Dashboard',
+        href: '/dashboard',
+        icon: 'home',
+    },
+    {
+        title: 'Tournaments',
+        href: '/tournaments',
+        icon: 'trophy',
+    },
+    {
+        title: 'Settings',
+        href: '/settings/profile',
+        icon: 'settings',
+    },
+];
+
+export function NavMain() {
     const page = usePage();
+    
     return (
         <SidebarGroup className="px-2 py-0">
-            <SidebarGroupLabel>Platform</SidebarGroupLabel>
+            <SidebarGroupLabel>Tournament Management</SidebarGroupLabel>
             <SidebarMenu>
-                {items.map((item) => (
+                {tournamentNavItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton asChild isActive={page.url.startsWith(item.href)} tooltip={{ children: item.title }}>
                             <Link href={item.href} prefetch>
-                                {item.icon && <item.icon />}
+                                <Icon name={item.icon as any} className="h-4 w-4" />
                                 <span>{item.title}</span>
                             </Link>
                         </SidebarMenuButton>
