@@ -92,6 +92,35 @@ export default function Profile({ mustVerifyEmail, status }: { mustVerifyEmail: 
                                     </p>
                                 </div>
 
+                                <div className="grid gap-2">
+                                    <Label htmlFor="ifpa_api_key">IFPA API Key</Label>
+
+                                    <Input
+                                        id="ifpa_api_key"
+                                        type="password"
+                                        className="mt-1 block w-full"
+                                        defaultValue={auth.user.ifpa_api_key || ""}
+                                        name="ifpa_api_key"
+                                        autoComplete="off"
+                                        placeholder="Paste your IFPA API key here"
+                                    />
+
+                                    <InputError className="mt-2" message={errors.ifpa_api_key} />
+                                    
+                                    <p className="text-sm text-muted-foreground">
+                                        Get your API key from IFPA to automatically fetch player names from historical tournaments. Visit{' '}
+                                        <a 
+                                            href="https://www.ifpapinball.com/api/documentation/" 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            className="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current dark:decoration-neutral-500"
+                                        >
+                                            IFPA API Documentation
+                                        </a>{' '}
+                                        to request access.
+                                    </p>
+                                </div>
+
                                 {mustVerifyEmail && auth.user.email_verified_at === null && (
                                     <div>
                                         <p className="-mt-4 text-sm text-muted-foreground">

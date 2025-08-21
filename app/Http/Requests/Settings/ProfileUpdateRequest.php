@@ -4,6 +4,7 @@ namespace App\Http\Requests\Settings;
 
 use App\Models\User;
 use App\Services\MatchplayApiService;
+
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -29,7 +30,8 @@ class ProfileUpdateRequest extends FormRequest
                 Rule::unique(User::class)->ignore($this->user()->id),
             ],
 
-            'matchplay_api_token' => ['nullable', 'string', 'max:255'],
+                                'matchplay_api_token' => ['nullable', 'string', 'max:255'],
+                    'ifpa_api_key' => ['nullable', 'string', 'max:255'],
         ];
     }
 
@@ -39,6 +41,7 @@ class ProfileUpdateRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            // Validate Matchplay API token
             if ($this->filled('matchplay_api_token')) {
                 try {
                     // Create a temporary user instance to test the token
@@ -50,6 +53,22 @@ class ProfileUpdateRequest extends FormRequest
                     }
                 } catch (\Exception $e) {
                     $validator->errors()->add('matchplay_api_token', 'Unable to validate the Matchplay API token: ' . $e->getMessage());
+                }
+            }
+
+            // Validate IFPA API key
+            if ($this->filled('ifpa_api_key')) {
+                try {
+                    $response = \Illuminate\Support\Facades\Http::withHeaders([
+                        'X-API-Key' => $this->ifpa_api_key,
+                        'Accept' => 'application/json',
+                    ])->get('https://api.ifpapinball.com/player?players=15925');
+                    
+                    if (!$response->successful()) {
+                        $validator->errors()->add('ifpa_api_key', 'The IFPA API key is invalid or cannot connect to the API.');
+                    }
+                } catch (\Exception $e) {
+                    $validator->errors()->add('ifpa_api_key', 'Unable to validate the IFPA API key: ' . $e->getMessage());
                 }
             }
         });

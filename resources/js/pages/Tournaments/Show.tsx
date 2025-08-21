@@ -5,6 +5,7 @@ import { useState } from 'react';
 import Heading from '@/components/heading';
 import TeamManagement from '@/components/team-management';
 import QrCodeDisplay from '@/components/qr-code-display';
+import PlayerNameEditor from '@/components/player-name-editor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -255,6 +256,15 @@ export default function TournamentShow({ tournament, standings, qrCodeUrl, avail
                     </TabsContent>
 
                     <TabsContent value="teams" className="space-y-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 className="text-lg font-semibold">Team Management</h3>
+                                <p className="text-sm text-muted-foreground">Create and manage teams for this tournament</p>
+                            </div>
+                            {availablePlayers && (
+                                <PlayerNameEditor tournament={tournament} players={availablePlayers} />
+                            )}
+                        </div>
                         <TeamManagement tournament={tournament} availablePlayers={availablePlayers} />
                     </TabsContent>
 

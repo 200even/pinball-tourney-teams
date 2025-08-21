@@ -128,7 +128,7 @@ export default function TeamManagement({ tournament, availablePlayers = [] }: Pr
                                         <SelectTrigger className={createErrors.player1_id ? 'border-red-500' : ''}>
                                             <SelectValue placeholder="Select first player" />
                                         </SelectTrigger>
-                                        <SelectContent>
+                                        <SelectContent className="max-h-60 overflow-y-auto" position="popper" side="bottom" sideOffset={4}>
                                             {availablePlayers.map((player) => (
                                                 <SelectItem key={player.id} value={player.id.toString()}>
                                                     {player.name}
@@ -148,7 +148,7 @@ export default function TeamManagement({ tournament, availablePlayers = [] }: Pr
                                         <SelectTrigger className={createErrors.player2_id ? 'border-red-500' : ''}>
                                             <SelectValue placeholder="Select second player" />
                                         </SelectTrigger>
-                                        <SelectContent>
+                                        <SelectContent className="max-h-60 overflow-y-auto" position="popper" side="bottom" sideOffset={4}>
                                             {availablePlayers
                                                 .filter(player => player.id.toString() !== createData.player1_id)
                                                 .map((player) => (

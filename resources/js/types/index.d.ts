@@ -38,6 +38,7 @@ export interface User {
     avatar?: string;
     email_verified_at: string | null;
     matchplay_api_token?: string | null;
+    ifpa_api_key?: string | null;
     created_at: string;
     updated_at: string;
     [key: string]: unknown; // This allows for additional properties...

@@ -96,13 +96,41 @@ class MatchplayApiService
      */
     public function getPlayer(int $playerId): ?array
     {
-        $response = $this->makeRequest("profiles/{$playerId}");
+        $response = $this->makeRequest("users/{$playerId}");
 
         if ($response->successful()) {
-            return $response->json();
+            $data = $response->json();
+            return $data['user'] ?? null;
         }
 
         return null;
+    }
+
+    /**
+     * Get players owned by the current user
+     */
+    public function getPlayers(?string $status = null, ?array $playerIds = null): array
+    {
+        $queryParams = [];
+        
+        if ($status) {
+            $queryParams['status'] = $status;
+        }
+        
+        if ($playerIds && is_array($playerIds)) {
+            // Limit to 25 players per API docs
+            $playerIds = array_slice($playerIds, 0, 25);
+            $queryParams['players'] = implode(',', $playerIds);
+        }
+
+        $response = $this->makeRequest('players', 'GET', $queryParams);
+
+        if ($response->successful()) {
+            $data = $response->json();
+            return $data['data'] ?? [];
+        }
+
+        return [];
     }
 
     /**
@@ -178,42 +206,43 @@ class MatchplayApiService
     }
 
     /**
-     * Extract players from tournament standings
+     * Extract players from tournament standings with improved name resolution
      */
     public function getTournamentPlayers(string $tournamentId): array
     {
         $standings = $this->getTournamentStandings($tournamentId);
         $players = [];
+        
+        // Extract player IDs from standings
+        $playerIds = array_map(fn($standing) => $standing['playerId'], $standings);
+        
+        // Try to get player details in batches of 25 (API limit)
+        $playerProfiles = [];
+        $chunks = array_chunk($playerIds, 25);
+        
+        foreach ($chunks as $chunk) {
+            $profiles = $this->getPlayers(null, $chunk);
+            foreach ($profiles as $profile) {
+                $playerProfiles[$profile['playerId']] = $profile;
+            }
+        }
 
+        // Combine standings with player profiles
         foreach ($standings as $standing) {
             if (isset($standing['playerId'])) {
-                // Get player profile for more details
-                $playerProfile = $this->getPlayer($standing['playerId']);
+                $playerId = $standing['playerId'];
+                $profile = $playerProfiles[$playerId] ?? null;
                 
-                if ($playerProfile) {
-                    $players[] = [
-                        'playerId' => $standing['playerId'],
-                        'name' => $playerProfile['name'] ?? 'Unknown Player',
-                        'ifpaId' => $playerProfile['ifpaId'] ?? null,
-                        'points' => $standing['points'] ?? 0,
-                        'gamesPlayed' => $standing['gamesPlayed'] ?? 0,
-                        'position' => $standing['position'] ?? null,
-                        'profile' => $playerProfile,
-                        'standing' => $standing,
-                    ];
-                } else {
-                    // Fallback if profile fetch fails
-                    $players[] = [
-                        'playerId' => $standing['playerId'],
-                        'name' => 'Player ' . $standing['playerId'],
-                        'ifpaId' => null,
-                        'points' => $standing['points'] ?? 0,
-                        'gamesPlayed' => $standing['gamesPlayed'] ?? 0,
-                        'position' => $standing['position'] ?? null,
-                        'profile' => null,
-                        'standing' => $standing,
-                    ];
-                }
+                $players[] = [
+                    'playerId' => $playerId,
+                    'name' => $profile['name'] ?? "Player {$playerId}",
+                    'ifpaId' => $profile['ifpaId'] ?? null,
+                    'points' => $standing['points'] ?? 0,
+                    'gamesPlayed' => $standing['gamesPlayed'] ?? 0,
+                    'position' => $standing['position'] ?? null,
+                    'profile' => $profile,
+                    'standing' => $standing,
+                ];
             }
         }
 
@@ -250,21 +279,45 @@ class MatchplayApiService
     }
 
     /**
+     * Get tournament player roster (different from standings)
+     */
+    public function getTournamentPlayerRoster(string $tournamentId): array
+    {
+        $response = $this->makeRequest("tournaments/{$tournamentId}/players");
+
+        if ($response->successful()) {
+            $data = $response->json();
+            return $data['data'] ?? $data;
+        }
+
+        return [];
+    }
+
+    /**
      * Make authenticated request to Matchplay API
      */
-    private function makeRequest(string $endpoint, array $params = []): Response
+    private function makeRequest(string $endpoint, string $method = 'GET', array $params = []): Response
     {
         $url = self::BASE_URL . '/' . ltrim($endpoint, '/');
 
-        $response = Http::withHeaders([
+        $httpClient = Http::withHeaders([
             'Authorization' => 'Bearer ' . $this->user->matchplay_api_token,
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
-        ])->get($url, $params);
+        ]);
+
+        $response = match (strtoupper($method)) {
+            'GET' => $httpClient->get($url, $params),
+            'POST' => $httpClient->post($url, $params),
+            'PUT' => $httpClient->put($url, $params),
+            'DELETE' => $httpClient->delete($url, $params),
+            default => $httpClient->get($url, $params),
+        };
 
         if (!$response->successful()) {
             Log::warning('Matchplay API request failed', [
                 'endpoint' => $endpoint,
+                'method' => $method,
                 'params' => $params,
                 'status' => $response->status(),
                 'body' => $response->body(),

@@ -7,6 +7,7 @@ use App\Models\Round;
 use App\Models\Team;
 use App\Models\Tournament;
 use App\Services\MatchplayApiService;
+use App\Services\PlayerNameMatchingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -103,8 +104,28 @@ class TournamentController extends Controller
             'rounds'
         ]);
 
-        // Get all available players (imported from Matchplay)
-        $availablePlayers = Player::orderBy('name')->get();
+        // Get players from this specific tournament using stored player IDs
+        if (!empty($tournament->tournament_player_ids)) {
+            $availablePlayers = Player::whereIn('matchplay_player_id', $tournament->tournament_player_ids)
+                ->orderBy('name')
+                ->get();
+        } else {
+            // Fallback: try to sync tournament data first, then get players
+            try {
+                $this->importTournamentData($tournament);
+                $tournament->refresh();
+                
+                if (!empty($tournament->tournament_player_ids)) {
+                    $availablePlayers = Player::whereIn('matchplay_player_id', $tournament->tournament_player_ids)
+                        ->orderBy('name')
+                        ->get();
+                } else {
+                    $availablePlayers = collect();
+                }
+            } catch (\Exception $e) {
+                $availablePlayers = collect();
+            }
+        }
 
         // Calculate current standings
         $standings = $tournament->calculateStandings();
@@ -123,25 +144,252 @@ class TournamentController extends Controller
 
         try {
             $this->importTournamentData($tournament);
-            
+
             return back()->with('success', 'Tournament data synced successfully!');
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Failed to sync tournament: ' . $e->getMessage()]);
         }
     }
 
+    public function updatePlayerNames(Request $request, Tournament $tournament)
+    {
+        $this->authorize('update', $tournament);
+
+        $validated = $request->validate([
+            'players' => 'required|array',
+            'players.*.id' => 'required|exists:players,id',
+            'players.*.name' => 'required|string|max:255',
+        ]);
+
+        try {
+            foreach ($validated['players'] as $playerData) {
+                $player = Player::find($playerData['id']);
+                if ($player) {
+                    $player->update(['name' => $playerData['name']]);
+                }
+            }
+
+            return back()->with('success', 'Player names updated successfully!');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Failed to update player names: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Match player names using historical IFPA tournament data
+     */
+    public function matchNamesFromIfpaTournament(Tournament $tournament, Request $request)
+    {
+        $this->authorize('update', $tournament);
+
+        $request->validate([
+            'ifpa_tournament_id' => 'required|integer|min:1',
+        ]);
+
+        if (!$tournament->user->matchplay_api_token) {
+            return back()->withErrors(['error' => 'Matchplay API token is required.']);
+        }
+
+        try {
+            $matchplayService = new MatchplayApiService($tournament->user);
+            $nameMatchingService = new PlayerNameMatchingService();
+
+            // Get current tournament players
+            $playersData = $matchplayService->getTournamentPlayers($tournament->matchplay_tournament_id);
+            
+            // Use the user's IFPA API key
+            $ifpaApiKey = $tournament->user->ifpa_api_key;
+            
+            if (!$ifpaApiKey) {
+                return back()->withErrors(['error' => 'IFPA API key is required to match names from IFPA tournaments.']);
+            }
+
+            // Match names using the IFPA tournament
+            $matchedPlayers = $nameMatchingService->matchPlayersFromIfpaTournament(
+                $playersData, 
+                $request->ifpa_tournament_id,
+                $ifpaApiKey
+            );
+
+            // Update players with matched names
+            $updatedCount = 0;
+            foreach ($matchedPlayers as $playerData) {
+                if (isset($playerData['name_source']) && $playerData['name_source'] === 'ifpa_tournament') {
+                    Player::where('matchplay_player_id', $playerData['playerId'])
+                        ->update(['name' => $playerData['name']]);
+                    $updatedCount++;
+                }
+            }
+
+            if ($updatedCount > 0) {
+                return back()->with('success', "Successfully matched {$updatedCount} player names from IFPA tournament {$request->ifpa_tournament_id}.");
+            } else {
+                return back()->with('info', 'No additional player names could be matched from this IFPA tournament.');
+            }
+
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Failed to match names from IFPA tournament: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Show the tournament name matching interface
+     */
+    public function nameMatching()
+    {
+        return Inertia::render('settings/name-matching');
+    }
+
+    /**
+     * Process tournament name matching request
+     */
+    public function processNameMatching(Request $request)
+    {
+        $request->validate([
+            'tournament_pairs' => 'required|array|min:1',
+            'tournament_pairs.*.matchplay_tournament_id' => 'required|string',
+            'tournament_pairs.*.ifpa_tournament_id' => 'required|integer|min:1',
+        ]);
+
+        $user = auth()->user();
+
+        if (!$user->hasMatchplayToken()) {
+            return back()->withErrors(['error' => 'Matchplay API token is required. Please add it in your profile settings.']);
+        }
+
+        if (!$user->hasIfpaApiKey()) {
+            return back()->withErrors(['error' => 'IFPA API key is required. Please add it in your profile settings.']);
+        }
+
+        try {
+            $matchplayService = new MatchplayApiService($user);
+            $nameMatchingService = new PlayerNameMatchingService();
+
+            $totalUpdatedCount = 0;
+            $processedPairs = [];
+
+            // Process each tournament pair using conservative matching
+            foreach ($request->tournament_pairs as $pair) {
+                $matchplayId = $pair['matchplay_tournament_id'];
+                $ifpaId = $pair['ifpa_tournament_id'];
+
+                try {
+                    // Get Matchplay tournament players
+                    $playersData = $matchplayService->getTournamentPlayers($matchplayId);
+                    
+                    if (empty($playersData)) {
+                        $processedPairs[] = "Matchplay {$matchplayId}: No players found";
+                        continue;
+                    }
+
+                    // Use conservative single-tournament matching (no multi-tournament for 1:1 pairs)
+                    $matchedPlayers = $nameMatchingService->matchPlayersFromIfpaTournament(
+                        $playersData, 
+                        $ifpaId,
+                        $user->ifpa_api_key
+                    );
+
+                    // Check for existing real names that would be overwritten
+                    $conflicts = [];
+                    foreach ($matchedPlayers as $playerData) {
+                        if (isset($playerData['name_source']) && $playerData['name_source'] === 'ifpa_tournament') {
+                            $existingPlayer = Player::where('matchplay_player_id', $playerData['playerId'])->first();
+                            if ($existingPlayer && 
+                                !str_starts_with($existingPlayer->name, 'Player ') && 
+                                $existingPlayer->name !== $playerData['name']) {
+                                $conflicts[] = [
+                                    'player_id' => $playerData['playerId'],
+                                    'current_name' => $existingPlayer->name,
+                                    'new_name' => $playerData['name']
+                                ];
+                            }
+                        }
+                    }
+                    
+                    // If there are conflicts, abort the entire operation
+                    if (!empty($conflicts)) {
+                        $conflictDetails = collect($conflicts)->map(function($conflict) {
+                            return "Player {$conflict['player_id']}: '{$conflict['current_name']}' → '{$conflict['new_name']}'";
+                        })->implode('; ');
+                        
+                        throw new \Exception("Name matching aborted to prevent overwriting existing real names. Conflicts: {$conflictDetails}");
+                    }
+
+                    // Update or create players with matched names (only if no conflicts)
+                    $pairUpdatedCount = 0;
+                    foreach ($matchedPlayers as $playerData) {
+                        if (isset($playerData['name_source']) && $playerData['name_source'] === 'ifpa_tournament') {
+                            Player::updateOrCreate(
+                                ['matchplay_player_id' => $playerData['playerId']],
+                                [
+                                    'name' => $playerData['name'],
+                                    'matchplay_data' => [
+                                        'profile' => $playerData['profile'] ?? null,
+                                        'standing' => $playerData['standing'] ?? null,
+                                    ],
+                                ]
+                            );
+                            $pairUpdatedCount++;
+                        } else {
+                            // Also create players that weren't matched but exist in the tournament
+                            Player::updateOrCreate(
+                                ['matchplay_player_id' => $playerData['playerId']],
+                                [
+                                    'name' => $playerData['name'] ?? "Player {$playerData['playerId']}",
+                                    'matchplay_data' => [
+                                        'profile' => $playerData['profile'] ?? null,
+                                        'standing' => $playerData['standing'] ?? null,
+                                    ],
+                                ]
+                            );
+                        }
+                    }
+
+                    $totalUpdatedCount += $pairUpdatedCount;
+                    $processedPairs[] = "Matchplay {$matchplayId} ↔ IFPA {$ifpaId}: {$pairUpdatedCount} matches";
+
+                } catch (\Exception $e) {
+                    $processedPairs[] = "Matchplay {$matchplayId} ↔ IFPA {$ifpaId}: Failed ({$e->getMessage()})";
+                }
+            }
+
+            if ($totalUpdatedCount > 0) {
+                $summary = implode('; ', $processedPairs);
+                return back()->with('success', "Successfully matched {$totalUpdatedCount} total player names using conservative 1:1 matching. Details: {$summary}");
+            } else {
+                $summary = implode('; ', $processedPairs);
+                return back()->with('info', "No player names could be matched. This may be due to tied positions being excluded for accuracy. Details: {$summary}");
+            }
+
+
+
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Failed to match names: ' . $e->getMessage()]);
+        }
+    }
+
     private function importTournamentData(Tournament $tournament): void
     {
         $matchplayService = new MatchplayApiService($tournament->user);
+        $nameMatchingService = new PlayerNameMatchingService();
 
         // Import players from standings
         $playersData = $matchplayService->getTournamentPlayers($tournament->matchplay_tournament_id);
+        
+        // Try to match player names from existing database records first
+        $playersData = $nameMatchingService->matchPlayersFromDatabase($playersData);
+        
+        // Store tournament player IDs for scoping
+        $tournamentPlayerIds = collect($playersData)->pluck('playerId')->filter()->toArray();
+        $tournament->update(['tournament_player_ids' => $tournamentPlayerIds]);
+        
         foreach ($playersData as $playerData) {
+            $playerName = $playerData['name']; // May have been improved by name matching
+            
             Player::updateOrCreate(
                 ['matchplay_player_id' => $playerData['playerId']],
                 [
-                    'name' => $playerData['name'],
-                    'ifpa_id' => $playerData['ifpaId'],
+                    'name' => $playerName,
                     'matchplay_data' => [
                         'profile' => $playerData['profile'],
                         'standing' => $playerData['standing'],
@@ -170,6 +418,58 @@ class TournamentController extends Controller
 
         // Update team scores if we have completed rounds
         $this->updateTeamScores($tournament);
+    }
+
+    /**
+     * Manually import additional players by their Matchplay IDs
+     */
+    public function importAdditionalPlayers(Tournament $tournament, Request $request)
+    {
+        $this->authorize('update', $tournament);
+
+        $request->validate([
+            'player_ids' => 'required|array',
+            'player_ids.*' => 'required|integer|min:1',
+        ]);
+
+        try {
+            $matchplayService = new MatchplayApiService($tournament->user);
+            $imported = 0;
+
+            foreach ($request->player_ids as $playerId) {
+                try {
+                    // Get player profile from Matchplay API
+                    $profile = $matchplayService->getPlayer($playerId);
+                    
+                    if ($profile) {
+                        $playerName = $profile['name'] ?? "Player {$playerId}";
+                        
+                        Player::updateOrCreate(
+                            ['matchplay_player_id' => $playerId],
+                            [
+                                'name' => $playerName,
+                                'matchplay_data' => [
+                                    'profile' => $profile,
+                                    'standing' => null, // No standing data for manually added players
+                                ],
+                            ]
+                        );
+                        
+                        $imported++;
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Failed to import additional player', [
+                        'player_id' => $playerId,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            return back()->with('success', "Successfully imported {$imported} additional players.");
+            
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Failed to import additional players: ' . $e->getMessage()]);
+        }
     }
 
     private function updateTeamScores(Tournament $tournament): void

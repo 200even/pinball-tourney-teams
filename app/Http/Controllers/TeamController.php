@@ -6,6 +6,7 @@ use App\Models\Player;
 use App\Models\Team;
 use App\Models\Tournament;
 use App\Services\TeamNameGeneratorService;
+
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -18,12 +19,9 @@ class TeamController extends Controller
 
         $tournament->load(['teams.player1', 'teams.player2']);
         
-        // Get all players from the tournament
-        $allPlayersInTournament = Player::whereIn('matchplay_player_id', function ($query) use ($tournament) {
-            // This would need to be adjusted based on how we store tournament players
-            // For now, get all players that appear in standings
-            return collect($tournament->matchplay_data['standings'] ?? [])->pluck('playerId');
-        })->get();
+        // Get all players from the tournament using stored player IDs
+        $playerIds = $tournament->tournament_player_ids ?? [];
+        $allPlayersInTournament = Player::whereIn('matchplay_player_id', $playerIds)->get();
 
         // Get available players (not on teams yet)
         $availablePlayers = $allPlayersInTournament->filter(function ($player) use ($tournament) {

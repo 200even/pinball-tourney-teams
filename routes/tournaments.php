@@ -16,6 +16,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('tournaments', TournamentController::class);
     Route::post('tournaments/{tournament}/sync', [TournamentController::class, 'sync'])
         ->name('tournaments.sync');
+    Route::post('tournaments/{tournament}/update-player-names', [TournamentController::class, 'updatePlayerNames'])
+        ->name('tournaments.update-player-names');
+    
+    Route::post('tournaments/{tournament}/match-names-from-ifpa', [TournamentController::class, 'matchNamesFromIfpaTournament'])
+        ->name('tournaments.match-names-from-ifpa');
+    
+
+
+    
+    Route::post('tournaments/{tournament}/import-additional-players', [TournamentController::class, 'importAdditionalPlayers'])
+        ->name('tournaments.import-additional-players');
     
     // Team management routes
     Route::resource('tournaments.teams', TeamController::class)

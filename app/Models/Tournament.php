@@ -19,6 +19,7 @@ class Tournament extends Model
         'end_date',
         'matchplay_data',
         'qr_code_uuid',
+        'tournament_player_ids',
     ];
 
     protected function casts(): array
@@ -27,6 +28,7 @@ class Tournament extends Model
             'start_date' => 'datetime',
             'end_date' => 'datetime',
             'matchplay_data' => 'array',
+            'tournament_player_ids' => 'array',
         ];
     }
 

@@ -23,6 +23,7 @@ class User extends Authenticatable
         'email',
         'password',
         'matchplay_api_token',
+        'ifpa_api_key',
     ];
 
     /**
@@ -56,5 +57,10 @@ class User extends Authenticatable
     public function hasMatchplayToken(): bool
     {
         return !empty($this->matchplay_api_token);
+    }
+
+    public function hasIfpaApiKey(): bool
+    {
+        return !empty($this->ifpa_api_key);
     }
 }
