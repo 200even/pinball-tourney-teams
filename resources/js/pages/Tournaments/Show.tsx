@@ -1,42 +1,16 @@
-import { type BreadcrumbItem, type SharedData } from '@/types';
-import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 
 import Heading from '@/components/heading';
-import TeamManagement from '@/components/team-management';
-import QrCodeDisplay from '@/components/qr-code-display';
-import PlayerNameEditor from '@/components/player-name-editor';
+import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Icon } from '@/components/ui/icon';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
-
-interface Tournament {
-    id: number;
-    name: string;
-    status: string;
-    matchplay_tournament_id: string;
-    description?: string;
-    start_date?: string;
-    end_date?: string;
-    qr_code_uuid: string;
-    teams: Team[];
-    rounds: Round[];
-    created_at: string;
-}
-
-interface Team {
-    id: number;
-    name: string;
-    generated_name: string;
-    total_points: number;
-    games_played: number;
-    position?: number;
-    player1: Player;
-    player2: Player;
-}
+import PlayerNameEditor from '@/components/player-name-editor';
+import QRCodeDisplay from '@/components/qr-code-display';
 
 interface Player {
     id: number;
@@ -45,24 +19,54 @@ interface Player {
     ifpa_id?: string;
 }
 
+interface Team {
+    id: number;
+    name: string;
+    generated_name: string;
+    total_points: number;
+    games_played: number;
+    player1: Player;
+    player2: Player;
+}
+
 interface Round {
     id: number;
     round_number: number;
+    status: string;
+}
+
+interface Tournament {
+    id: number;
     name: string;
     status: string;
-    completed_at?: string;
+    matchplay_tournament_id: string;
+    start_date?: string;
+    end_date?: string;
+    qr_code_uuid: string;
+    auto_sync: boolean;
+    teams: Team[];
+    rounds: Round[];
+}
+
+interface Standing {
+    position: number;
+    team: Team;
+    total_points: number;
+    games_played: number;
 }
 
 interface PageProps {
     tournament: Tournament;
-    standings?: Team[];
-    qrCodeUrl?: string;
-    availablePlayers?: Player[];
+    standings: Standing[];
+    qrCodeUrl: string;
+    availablePlayers: Player[];
 }
 
 export default function TournamentShow({ tournament, standings, qrCodeUrl, availablePlayers }: PageProps) {
     const { auth } = usePage<SharedData>().props;
-    const [syncing, setSyncing] = useState(false);
+    const [syncingData, setSyncingData] = useState(false);
+    const [togglingAutoSync, setTogglingAutoSync] = useState(false);
+    const [showQRCode, setShowQRCode] = useState(false);
 
     const breadcrumbs: BreadcrumbItem[] = [
         {
@@ -75,11 +79,19 @@ export default function TournamentShow({ tournament, standings, qrCodeUrl, avail
         },
     ];
 
-    const handleSync = () => {
-        setSyncing(true);
+    const handleSyncData = () => {
+        setSyncingData(true);
         router.post(route('tournaments.sync', tournament.id), {}, {
-            preserveScroll: true,
-            onFinish: () => setSyncing(false),
+            preserveState: true,
+            onFinish: () => setSyncingData(false),
+        });
+    };
+
+    const handleToggleAutoSync = () => {
+        setTogglingAutoSync(true);
+        router.post(route('tournaments.toggle-auto-sync', tournament.id), {}, {
+            preserveState: true,
+            onFinish: () => setTogglingAutoSync(false),
         });
     };
 
@@ -100,227 +112,217 @@ export default function TournamentShow({ tournament, standings, qrCodeUrl, avail
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={tournament.name} />
 
-            <div className="space-y-6">
-                <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                        <div className="flex items-center gap-4">
-                            <Link href={route('tournaments.index')}>
-                                <Button variant="outline" size="sm" className="gap-2">
-                                    <Icon name="arrow-left" className="h-4 w-4" />
-                                    Back
-                                </Button>
-                            </Link>
-                            <Heading title={tournament.name} description={tournament.description} />
-                        </div>
-                        <div className="flex items-center gap-4 ml-16">
-                            <Badge 
-                                variant="outline" 
-                                className={getStatusColor(tournament.status)}
-                            >
-                                {tournament.status}
-                            </Badge>
-                            <span className="text-sm text-muted-foreground">
-                                ID: {tournament.matchplay_tournament_id}
-                            </span>
-                            {tournament.teams && tournament.teams.length > 0 && (
-                                <span className="text-sm text-muted-foreground">
-                                    {tournament.teams.length} teams
-                                </span>
-                            )}
-                        </div>
-                    </div>
+            <div className="space-y-6 p-4 md:p-6">
+                <div className="flex items-center justify-between">
+                    <Heading title={tournament.name} description="Tournament details and team standings" />
                     
-                    <div className="flex items-center gap-2">
-                        <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={handleSync}
-                            disabled={syncing}
+                    <div className="flex items-center gap-3">
+                        <Button
+                            variant="outline"
+                            onClick={handleSyncData}
+                            disabled={syncingData}
                             className="gap-2"
                         >
-                            {syncing ? (
-                                <>
-                                    <Icon name="loader-2" className="h-4 w-4 animate-spin" />
-                                    Syncing...
-                                </>
-                            ) : (
-                                <>
-                                    <Icon name="refresh-cw" className="h-4 w-4" />
-                                    Sync Data
-                                </>
-                            )}
+                            <Icon name={syncingData ? "loader-2" : "refresh-cw"} className={`h-4 w-4 ${syncingData ? 'animate-spin' : ''}`} />
+                            {syncingData ? 'Syncing...' : 'Sync Data'}
+                        </Button>
+                        
+                        <Button
+                            variant="outline"
+                            onClick={handleToggleAutoSync}
+                            disabled={togglingAutoSync}
+                            className="gap-2"
+                        >
+                            <Icon name={tournament.auto_sync ? "pause" : "play"} className="h-4 w-4" />
+                            {togglingAutoSync ? 'Updating...' : (tournament.auto_sync ? 'Disable Auto-Sync' : 'Enable Auto-Sync')}
+                        </Button>
+
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowQRCode(true)}
+                            className="gap-2"
+                        >
+                            <Icon name="qr-code" className="h-4 w-4" />
+                            QR Code
                         </Button>
                     </div>
                 </div>
 
-                <Tabs defaultValue="overview" className="space-y-4">
-                    <TabsList>
-                        <TabsTrigger value="overview" className="gap-2">
-                            <Icon name="info" className="h-4 w-4" />
-                            Overview
-                        </TabsTrigger>
-                        <TabsTrigger value="teams" className="gap-2">
-                            <Icon name="users" className="h-4 w-4" />
-                            Teams
-                        </TabsTrigger>
-                        <TabsTrigger value="leaderboard" className="gap-2">
-                            <Icon name="trophy" className="h-4 w-4" />
-                            Leaderboard
-                        </TabsTrigger>
-                        <TabsTrigger value="qr-code" className="gap-2">
-                            <Icon name="qr-code" className="h-4 w-4" />
-                            QR Code
-                        </TabsTrigger>
-                    </TabsList>
+                <div className="grid gap-6 lg:grid-cols-3">
+                    <div className="lg:col-span-2">
+                        <Tabs defaultValue="standings" className="space-y-6">
+                            <TabsList>
+                                <TabsTrigger value="standings">Standings</TabsTrigger>
+                                <TabsTrigger value="teams">Teams ({tournament.teams.length})</TabsTrigger>
+                            </TabsList>
 
-                    <TabsContent value="overview" className="space-y-4">
-                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                            <Card>
-                                <CardHeader className="pb-3">
-                                    <CardTitle className="text-base">Tournament Details</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">Status:</span>
-                                        <Badge variant="outline" className={getStatusColor(tournament.status)}>
-                                            {tournament.status}
-                                        </Badge>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">Matchplay ID:</span>
-                                        <code className="text-sm">{tournament.matchplay_tournament_id}</code>
-                                    </div>
-                                    {tournament.start_date && (
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Start Date:</span>
-                                            <span className="text-sm">{new Date(tournament.start_date).toLocaleDateString()}</span>
-                                        </div>
-                                    )}
-                                    {tournament.end_date && (
-                                        <div className="flex justify-between">
-                                            <span className="text-muted-foreground">End Date:</span>
-                                            <span className="text-sm">{new Date(tournament.end_date).toLocaleDateString()}</span>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
+                            <TabsContent value="standings">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Current Standings</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="p-0">
+                                        {standings.length === 0 ? (
+                                            <div className="p-6 text-center text-muted-foreground">
+                                                No standings available yet. Teams will appear here once games are played.
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-0">
+                                                {standings.map((standing, index) => (
+                                                    <div
+                                                        key={standing.team?.id || `standing-${index}`}
+                                                        className={`flex items-center justify-between p-4 border-b last:border-b-0 ${
+                                                            index < 3 ? 'bg-muted/30' : ''
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center gap-4">
+                                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                                                                index === 0 ? 'bg-yellow-500 text-yellow-50' :
+                                                                index === 1 ? 'bg-gray-400 text-gray-50' :
+                                                                index === 2 ? 'bg-amber-600 text-amber-50' :
+                                                                'bg-muted text-muted-foreground'
+                                                            }`}>
+                                                                {standing.position}
+                                                            </div>
+                                                            <div>
+                                                                <div className="font-medium">
+                                                                    {standing.team?.name || standing.team?.generated_name || 'Unknown Team'}
+                                                                </div>
+                                                                <div className="text-sm text-muted-foreground">
+                                                                    {standing.team?.player1?.name || 'Player 1'} & {standing.team?.player2?.name || 'Player 2'}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <div className="font-bold">{standing?.total_points || 0} pts</div>
+                                                            <div className="text-sm text-muted-foreground">
+                                                                {standing?.games_played || 0} games
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
 
-                            <Card>
-                                <CardHeader className="pb-3">
-                                    <CardTitle className="text-base">Statistics</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">Teams:</span>
-                                        <span className="font-medium">{tournament.teams?.length || 0}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">Rounds:</span>
-                                        <span className="font-medium">{tournament.rounds?.length || 0}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">Players:</span>
-                                        <span className="font-medium">{(tournament.teams?.length || 0) * 2}</span>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                            <TabsContent value="teams">
+                                <Card>
+                                    <CardHeader className="flex flex-row items-center justify-between">
+                                        <CardTitle>Teams</CardTitle>
+                                        <Link href={route('tournaments.teams.index', tournament.id)}>
+                                            <Button size="sm" className="gap-2">
+                                                <Icon name="users" className="h-4 w-4" />
+                                                Manage Teams
+                                            </Button>
+                                        </Link>
+                                    </CardHeader>
+                                    <CardContent className="p-0">
+                                        {tournament.teams.length === 0 ? (
+                                            <div className="p-6 text-center text-muted-foreground">
+                                                No teams created yet.
+                                                <Link href={route('tournaments.teams.index', tournament.id)} className="block mt-2">
+                                                    <Button size="sm">Create Teams</Button>
+                                                </Link>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-0">
+                                                {tournament.teams.map((team, index) => (
+                                                    <div key={team?.id || `team-${index}`} className="flex items-center justify-between p-4 border-b last:border-b-0">
+                                                        <div>
+                                                            <div className="font-medium">
+                                                                {team?.name || team?.generated_name || 'Unknown Team'}
+                                                            </div>
+                                                            <div className="text-sm text-muted-foreground">
+                                                                {team?.player1?.name || 'Player 1'} & {team?.player2?.name || 'Player 2'}
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <div className="font-medium">{team?.total_points || 0} pts</div>
+                                                            <div className="text-sm text-muted-foreground">
+                                                                {team?.games_played || 0} games
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                        </Tabs>
+                    </div>
 
-                            <Card>
-                                <CardHeader className="pb-3">
-                                    <CardTitle className="text-base">Quick Actions</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    <Link 
-                                        href={route('tournaments.leaderboard.public', tournament.qr_code_uuid)}
-                                        target="_blank"
-                                        className="block"
-                                    >
-                                        <Button variant="outline" size="sm" className="w-full gap-2">
-                                            <Icon name="external-link" className="h-4 w-4" />
-                                            View Public Leaderboard
-                                        </Button>
-                                    </Link>
-                                    <Button 
-                                        variant="outline" 
-                                        size="sm" 
-                                        onClick={handleSync}
-                                        disabled={syncing}
-                                        className="w-full gap-2"
-                                    >
-                                        <Icon name="refresh-cw" className="h-4 w-4" />
-                                        Sync with Matchplay
-                                    </Button>
-                                </CardContent>
-                            </Card>
-                        </div>
-                    </TabsContent>
-
-                    <TabsContent value="teams" className="space-y-4">
-                        <div className="flex items-center justify-between mb-4">
-                            <div>
-                                <h3 className="text-lg font-semibold">Team Management</h3>
-                                <p className="text-sm text-muted-foreground">Create and manage teams for this tournament</p>
-                            </div>
-                            {availablePlayers && (
-                                <PlayerNameEditor tournament={tournament} players={availablePlayers} />
-                            )}
-                        </div>
-                        <TeamManagement tournament={tournament} availablePlayers={availablePlayers} />
-                    </TabsContent>
-
-                    <TabsContent value="leaderboard" className="space-y-4">
+                    <div className="space-y-6">
                         <Card>
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Icon name="trophy" className="h-5 w-5" />
-                                    Team Standings
-                                </CardTitle>
+                                <CardTitle>Tournament Details</CardTitle>
                             </CardHeader>
-                            <CardContent>
-                                {!tournament.teams || tournament.teams.length === 0 ? (
-                                    <div className="text-center py-8">
-                                        <Icon name="users" className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                                        <p className="text-muted-foreground">No teams created yet.</p>
+                            <CardContent className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-muted-foreground">Status:</span>
+                                    <Badge variant="outline" className={getStatusColor(tournament.status)}>
+                                        {tournament.status}
+                                    </Badge>
+                                </div>
+                                
+                                <div className="flex items-center justify-between">
+                                    <span className="text-muted-foreground">Matchplay ID:</span>
+                                    <code className="px-2 py-1 bg-muted rounded text-xs">
+                                        {tournament.matchplay_tournament_id}
+                                    </code>
+                                </div>
+
+                                <div className="flex items-center justify-between">
+                                    <span className="text-muted-foreground">Auto-Sync:</span>
+                                    <Badge variant={tournament.auto_sync ? "default" : "secondary"}>
+                                        {tournament.auto_sync ? "Enabled" : "Disabled"}
+                                    </Badge>
+                                </div>
+
+                                {tournament.start_date && (
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-muted-foreground">Start Date:</span>
+                                        <span>{new Date(tournament.start_date).toLocaleDateString()}</span>
                                     </div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {tournament.teams
-                                            .sort((a, b) => b.total_points - a.total_points)
-                                            .map((team, index) => (
-                                                <div 
-                                                    key={team.id}
-                                                    className="flex items-center justify-between p-4 border rounded-lg"
-                                                >
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted text-sm font-bold">
-                                                            {index + 1}
-                                                        </div>
-                                                        <div>
-                                                            <p className="font-medium">{team.name}</p>
-                                                            <p className="text-sm text-muted-foreground">
-                                                                {team.player1.name} & {team.player2.name}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <p className="font-bold">{team.total_points} pts</p>
-                                                        <p className="text-sm text-muted-foreground">
-                                                            {team.games_played} games
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            ))}
+                                )}
+
+                                {tournament.end_date && (
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-muted-foreground">End Date:</span>
+                                        <span>{new Date(tournament.end_date).toLocaleDateString()}</span>
                                     </div>
                                 )}
                             </CardContent>
                         </Card>
-                    </TabsContent>
 
-                    <TabsContent value="qr-code" className="space-y-4">
-                        <QrCodeDisplay tournament={tournament} />
-                    </TabsContent>
-                </Tabs>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Actions</CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                <Link href={route('tournaments.leaderboard.public', tournament.qr_code_uuid)} target="_blank" className="block">
+                                    <Button variant="outline" className="w-full gap-2">
+                                        <Icon name="external-link" className="h-4 w-4" />
+                                        View Public Leaderboard
+                                    </Button>
+                                </Link>
+
+                                <PlayerNameEditor tournament={tournament} players={availablePlayers} />
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
             </div>
+
+            {showQRCode && (
+                <QRCodeDisplay
+                    url={qrCodeUrl}
+                    title={`${tournament.name} Leaderboard`}
+                    onClose={() => setShowQRCode(false)}
+                />
+            )}
         </AppLayout>
     );
 }

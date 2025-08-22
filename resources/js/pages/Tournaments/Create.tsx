@@ -16,52 +16,59 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: '/tournaments',
     },
     {
-        title: 'Create Tournament',
+        title: 'Create',
         href: '/tournaments/create',
     },
 ];
 
-export default function CreateTournament() {
+export default function Create() {
     const { data, setData, post, processing, errors } = useForm({
         matchplay_tournament_id: '',
     });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    function submit(e: React.FormEvent) {
         e.preventDefault();
-        
-        post(route('tournaments.store'), {
-            onSuccess: () => {
-                // Will redirect to the tournament show page
-            },
-        });
-    };
+        post(route('tournaments.store'));
+    }
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Create Tournament" />
-            <div className="space-y-6 max-w-2xl">
+
+            <div className="p-4 md:p-6 space-y-6">
                 <Heading title="Create Tournament" description="Import a tournament from Matchplay Events" />
-                <Card>
+
+                <Card className="max-w-2xl">
                     <CardHeader>
-                        <CardTitle>Import from Matchplay</CardTitle>
+                        <CardTitle className="flex items-center gap-2">
+                            <Icon name="plus" className="h-5 w-5" />
+                            Tournament Details
+                        </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            <div className="space-y-2">
+                        <form onSubmit={submit} className="space-y-4">
+                            <div>
                                 <Label htmlFor="matchplay_tournament_id">Matchplay Tournament ID</Label>
                                 <Input
                                     id="matchplay_tournament_id"
                                     type="text"
                                     value={data.matchplay_tournament_id}
                                     onChange={(e) => setData('matchplay_tournament_id', e.target.value)}
-                                    placeholder="e.g., 12345"
-                                    required
+                                    placeholder="Enter the tournament ID from Matchplay Events"
                                 />
                                 <InputError message={errors.matchplay_tournament_id} />
                             </div>
-                            <Button type="submit" disabled={processing}>
-                                {processing ? 'Importing...' : 'Import Tournament'}
-                            </Button>
+
+                            <div className="flex gap-4">
+                                <Button type="submit" disabled={processing}>
+                                    {processing ? 'Creating...' : 'Create Tournament'}
+                                </Button>
+                                <Link href={route('tournaments.index')}>
+                                    <Button type="button" variant="outline">
+                                        Cancel
+                                    </Button>
+                                </Link>
+                            </div>
                         </form>
                     </CardContent>
                 </Card>

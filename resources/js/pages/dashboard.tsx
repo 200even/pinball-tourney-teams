@@ -51,7 +51,7 @@ export default function Dashboard({
         <AppLayout>
             <Head title="Tournament Dashboard" />
             
-            <div className="space-y-8">
+            <div className="p-4 md:p-6 space-y-8">
                 {/* Welcome Header */}
                 <div className="space-y-2">
                     <Heading>Welcome back, {auth.user.name}!</Heading>

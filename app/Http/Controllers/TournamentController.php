@@ -36,7 +36,7 @@ class TournamentController extends Controller
                 ];
             });
 
-        return Inertia::render('Tournaments/Index', [
+        return Inertia::render('Tournaments/TournamentList', [
             'tournaments' => $tournaments,
         ]);
     }
@@ -149,6 +149,19 @@ class TournamentController extends Controller
         } catch (\Exception $e) {
             return back()->withErrors(['error' => 'Failed to sync tournament: ' . $e->getMessage()]);
         }
+    }
+
+    public function toggleAutoSync(Tournament $tournament)
+    {
+        $this->authorize('update', $tournament);
+
+        $tournament->update([
+            'auto_sync' => !$tournament->auto_sync,
+        ]);
+
+        $status = $tournament->auto_sync ? 'enabled' : 'disabled';
+        
+        return back()->with('success', "Auto-sync {$status} for this tournament.");
     }
 
     public function updatePlayerNames(Request $request, Tournament $tournament)

@@ -51,10 +51,12 @@ export default function TeamsIndex({ tournament, availablePlayers }: PageProps) 
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Teams - ${tournament.name}`} />
             
-            <TeamManagement 
-                tournament={tournament}
-                availablePlayers={availablePlayers}
-            />
+            <div className="p-4 md:p-6">
+                <TeamManagement 
+                    tournament={tournament}
+                    availablePlayers={availablePlayers}
+                />
+            </div>
         </AppLayout>
     );
 }

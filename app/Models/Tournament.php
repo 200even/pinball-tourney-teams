@@ -19,6 +19,7 @@ class Tournament extends Model
         'end_date',
         'matchplay_data',
         'qr_code_uuid',
+        'auto_sync',
         'tournament_player_ids',
     ];
 
@@ -28,6 +29,7 @@ class Tournament extends Model
             'start_date' => 'datetime',
             'end_date' => 'datetime',
             'matchplay_data' => 'array',
+            'auto_sync' => 'boolean',
             'tournament_player_ids' => 'array',
         ];
     }
@@ -86,8 +88,12 @@ class Tournament extends Model
             ->orderByDesc('games_played')
             ->get()
             ->map(function ($team, $index) {
-                $team->position = $index + 1;
-                return $team;
+                return [
+                    'position' => $index + 1,
+                    'team' => $team,
+                    'total_points' => $team->total_points,
+                    'games_played' => $team->games_played,
+                ];
             })
             ->toArray();
     }

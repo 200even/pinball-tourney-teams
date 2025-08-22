@@ -33,6 +33,9 @@ class LeaderboardController extends Controller
     {
         $tournament = Tournament::where('qr_code_uuid', $qrCodeUuid)->firstOrFail();
         
+        // Update team scores from Matchplay API
+        $this->updateTeamScores($tournament);
+        
         // If this is an AJAX request, return JSON data
         if (request()->wantsJson()) {
             $standings = $tournament->calculateStandings();
@@ -44,5 +47,26 @@ class LeaderboardController extends Controller
         }
 
         return redirect()->route('tournaments.leaderboard.public', $qrCodeUuid);
+    }
+
+    private function updateTeamScores(Tournament $tournament): void
+    {
+        $matchplayService = new \App\Services\MatchplayApiService($tournament->user);
+        $standings = $matchplayService->getTournamentStandings($tournament->matchplay_tournament_id);
+
+        foreach ($tournament->teams as $team) {
+            $player1Standing = collect($standings)->firstWhere('playerId', $team->player1->matchplay_player_id);
+            $player2Standing = collect($standings)->firstWhere('playerId', $team->player2->matchplay_player_id);
+
+            if ($player1Standing && $player2Standing) {
+                $totalPoints = ($player1Standing['points'] ?? 0) + ($player2Standing['points'] ?? 0);
+                $gamesPlayed = ($player1Standing['gamesPlayed'] ?? 0) + ($player2Standing['gamesPlayed'] ?? 0);
+
+                $team->update([
+                    'total_points' => $totalPoints,
+                    'games_played' => $gamesPlayed,
+                ]);
+            }
+        }
     }
 }

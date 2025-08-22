@@ -1,3 +1,4 @@
+// Tournaments List Page - Fixed Version
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 
@@ -31,7 +32,7 @@ interface PageProps {
     tournaments: Tournament[];
 }
 
-export default function TournamentsIndex({ tournaments }: PageProps) {
+export default function TournamentsListPage({ tournaments }: PageProps) {
     const { auth } = usePage<SharedData>().props;
 
     const getStatusColor = (status: string) => {
@@ -51,7 +52,7 @@ export default function TournamentsIndex({ tournaments }: PageProps) {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Tournaments" />
 
-            <div className="space-y-6">
+            <div className="space-y-6 p-4 md:p-6">
                 <div className="flex items-center justify-between">
                     <Heading title="Tournaments" description="Manage your pinball tournaments and teams" />
                     

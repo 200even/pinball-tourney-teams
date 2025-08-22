@@ -16,6 +16,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('tournaments', TournamentController::class);
     Route::post('tournaments/{tournament}/sync', [TournamentController::class, 'sync'])
         ->name('tournaments.sync');
+    Route::post('tournaments/{tournament}/toggle-auto-sync', [TournamentController::class, 'toggleAutoSync'])
+        ->name('tournaments.toggle-auto-sync');
     Route::post('tournaments/{tournament}/update-player-names', [TournamentController::class, 'updatePlayerNames'])
         ->name('tournaments.update-player-names');
     

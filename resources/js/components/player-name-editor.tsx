@@ -31,7 +31,7 @@ export default function PlayerNameEditor({ tournament, players }: PlayerNameEdit
     const { auth } = usePage<SharedData>().props;
     const [isOpen, setIsOpen] = useState(false);
     const [playerNames, setPlayerNames] = useState<Record<number, string>>(
-        players.reduce((acc, player) => ({ ...acc, [player.id]: player.name }), {})
+        (players || []).reduce((acc, player) => ({ ...acc, [player.id]: player.name }), {})
     );
 
     const [saving, setSaving] = useState(false);
@@ -45,7 +45,7 @@ export default function PlayerNameEditor({ tournament, players }: PlayerNameEdit
     const handleSave = () => {
         setSaving(true);
         
-        const playersData = players.map(player => ({
+        const playersData = (players || []).map(player => ({
             id: player.id,
             name: playerNames[player.id] || player.name,
         }));
@@ -108,11 +108,11 @@ export default function PlayerNameEditor({ tournament, players }: PlayerNameEdit
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-2">
-                        {players.map(player => (
+                        {(players || []).map(player => (
                             <Card key={player.id}>
                                 <CardHeader className="pb-2">
                                     <CardTitle className="text-sm">
-                                        Player {players.indexOf(player) + 1}
+                                        Player {(players || []).indexOf(player) + 1}
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
