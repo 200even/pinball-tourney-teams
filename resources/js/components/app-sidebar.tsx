@@ -18,12 +18,12 @@ const mainNavItems: NavItem[] = [
 const footerNavItems: NavItem[] = [
     {
         title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
+        href: 'https://github.com/200even/pinball-tourney-teams',
         icon: Folder,
     },
     {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
+        title: 'Matchplay API',
+        href: 'https://app.matchplay.events/api-docs/',
         icon: BookOpen,
     },
 ];
