@@ -109,6 +109,22 @@ Route::get('/config-check', function () {
     ]);
 })->withoutMiddleware(['web']);
 
+// Database environment check
+Route::get('/db-env', function () {
+    return response()->json([
+        'DATABASE_URL' => env('DATABASE_URL') ? 'SET (length: ' . strlen(env('DATABASE_URL')) . ')' : 'NOT SET',
+        'DB_CONNECTION' => env('DB_CONNECTION'),
+        'DB_HOST' => env('DB_HOST'),
+        'DB_PORT' => env('DB_PORT'),
+        'DB_DATABASE' => env('DB_DATABASE'),
+        'DB_USERNAME' => env('DB_USERNAME'),
+        'DB_PASSWORD' => env('DB_PASSWORD') ? 'SET' : 'NOT SET',
+        'config_db_host' => config('database.connections.pgsql.host'),
+        'config_db_database' => config('database.connections.pgsql.database'),
+        'timestamp' => date('Y-m-d H:i:s'),
+    ]);
+})->withoutMiddleware(['web']);
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         $user = auth()->user();
