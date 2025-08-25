@@ -23,5 +23,15 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // Enable detailed error reporting for debugging
+        $exceptions->render(function (Throwable $e, $request) {
+            if (env('APP_DEBUG', false)) {
+                return response()->json([
+                    'error' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => $e->getTraceAsString(),
+                ], 500);
+            }
+        });
     })->create();
