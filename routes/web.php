@@ -16,6 +16,11 @@ Route::get('/up', function () {
     ]);
 });
 
+// Simple test endpoint
+Route::get('/test', function () {
+    return response('Laravel is working! ' . date('Y-m-d H:i:s'));
+});
+
 // Debug endpoint for Railway deployment
 Route::get('/debug', function () {
     $info = [

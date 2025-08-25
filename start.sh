@@ -38,6 +38,10 @@ php artisan config:clear || echo "Config clear failed"
 php artisan route:clear || echo "Route clear failed"
 php artisan view:clear || echo "View clear failed"
 
+# Force route discovery
+echo "Rebuilding routes..."
+php artisan route:cache || echo "Route cache rebuild failed"
+
 echo "Testing routes..."
 php artisan route:list | head -5 || echo "Route list failed"
 
