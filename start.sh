@@ -6,8 +6,17 @@ echo "=== Starting Pinball Tournament Tracker ==="
 echo "Environment variables:"
 echo "APP_ENV: $APP_ENV"
 echo "APP_DEBUG: $APP_DEBUG" 
+echo "APP_KEY: ${APP_KEY:0:10}..." # Only show first 10 chars for security
 echo "DB_CONNECTION: $DB_CONNECTION"
 echo "PORT: ${PORT:-8080}"
+
+# Generate app key if missing
+if [ -z "$APP_KEY" ]; then
+    echo "APP_KEY missing - generating one..."
+    php artisan key:generate --force || echo "Key generation failed"
+else
+    echo "APP_KEY is set"
+fi
 
 # Check if Laravel can start
 echo "Testing Laravel configuration..."
@@ -38,9 +47,8 @@ php artisan config:clear || echo "Config clear failed"
 php artisan route:clear || echo "Route clear failed"
 php artisan view:clear || echo "View clear failed"
 
-# Force route discovery
-echo "Rebuilding routes..."
-php artisan route:cache || echo "Route cache rebuild failed"
+# DON'T cache routes in production - causes issues with route discovery
+echo "Route caching disabled - using route discovery"
 
 echo "Testing routes..."
 php artisan route:list | head -5 || echo "Route list failed"
