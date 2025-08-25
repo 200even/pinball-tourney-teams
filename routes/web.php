@@ -87,6 +87,16 @@ Route::get('/status', function () {
     ], 200, [], JSON_PRETTY_PRINT);
 });
 
+// Route without sessions middleware
+Route::get('/no-session', function () {
+    return response()->json([
+        'message' => 'This route bypasses sessions',
+        'timestamp' => date('Y-m-d H:i:s'),
+        'session_driver' => config('session.driver'),
+        'db_connection' => config('database.default'),
+    ]);
+})->withoutMiddleware(['web']);
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         $user = auth()->user();

@@ -13,8 +13,20 @@ echo "Debug mode enabled for troubleshooting"
 echo "APP_KEY: ${APP_KEY:0:10}..." # Only show first 10 chars for security
 echo "DB_CONNECTION: $DB_CONNECTION"
 echo "DB_HOST: $DB_HOST"
+echo "DB_PORT: $DB_PORT"
 echo "DB_DATABASE: $DB_DATABASE"
-echo "DATABASE_URL: ${DATABASE_URL:0:20}..." # Show first 20 chars
+echo "DB_USERNAME: $DB_USERNAME"
+echo "DATABASE_URL: ${DATABASE_URL:0:30}..." # Show first 30 chars
+
+# Check if Railway database variables are set
+if [ -n "$DATABASE_URL" ]; then
+    echo "DATABASE_URL is available - parsing..."
+    # Extract components from DATABASE_URL for debugging
+    echo "Parsed DATABASE_URL components:"
+    echo "$DATABASE_URL" | sed 's/.*:\/\/\([^:]*\):\([^@]*\)@\([^:]*\):\([^\/]*\)\/\(.*\)/Host: \3\nPort: \4\nDatabase: \5\nUser: \1/'
+else
+    echo "DATABASE_URL not set - using individual DB_ variables"
+fi
 echo "PORT: ${PORT:-8080}"
 
 # Generate app key if missing
