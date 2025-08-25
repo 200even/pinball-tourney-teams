@@ -66,9 +66,9 @@ php artisan config:clear || echo "Config clear failed"
 php artisan route:clear || echo "Route clear failed"
 php artisan view:clear || echo "View clear failed"
 
-# Force session driver to file for Railway deployment
-export SESSION_DRIVER=file
-echo "Forced SESSION_DRIVER to file"
+# Database is now working - can use database sessions
+export SESSION_DRIVER=database
+echo "Using database sessions (database connection working)"
 
 # DON'T cache routes in production - causes issues with route discovery
 echo "Route caching disabled - using route discovery"
