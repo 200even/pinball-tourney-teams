@@ -8,6 +8,9 @@ echo "APP_ENV: $APP_ENV"
 echo "APP_DEBUG: $APP_DEBUG" 
 echo "APP_KEY: ${APP_KEY:0:10}..." # Only show first 10 chars for security
 echo "DB_CONNECTION: $DB_CONNECTION"
+echo "DB_HOST: $DB_HOST"
+echo "DB_DATABASE: $DB_DATABASE"
+echo "DATABASE_URL: ${DATABASE_URL:0:20}..." # Show first 20 chars
 echo "PORT: ${PORT:-8080}"
 
 # Generate app key if missing
