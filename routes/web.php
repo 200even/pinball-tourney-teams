@@ -4,8 +4,37 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    return Inertia::render('welcome');
+    try {
+        return Inertia::render('welcome');
+    } catch (Exception $e) {
+        // Fallback if Inertia/frontend assets fail
+        return response()->view('welcome-fallback', [
+            'error' => $e->getMessage()
+        ]);
+    }
 })->name('home');
+
+// Simple HTML fallback for root
+Route::get('/simple', function () {
+    return '<!DOCTYPE html>
+<html>
+<head><title>Pinball Tournament Tracker</title></head>
+<body>
+    <h1>🎯 Pinball Tournament Tracker</h1>
+    <p>Laravel is running successfully!</p>
+    <p>Time: ' . date('Y-m-d H:i:s') . '</p>
+    <p>Environment: ' . env('APP_ENV') . '</p>
+    <ul>
+        <li><a href="/up">Health Check</a></li>
+        <li><a href="/status">Status Info</a></li>
+        <li><a href="/hello">Hello Test</a></li>
+        <li><a href="/test">Laravel Test</a></li>
+        <li><a href="/debug">Debug Info</a></li>
+        <li><a href="/simple-test.php">PHP Test</a></li>
+    </ul>
+</body>
+</html>';
+});
 
 // Health check is handled by Laravel's built-in health route in bootstrap/app.php
 
@@ -43,6 +72,19 @@ Route::get('/debug', function () {
     }
     
     return response()->json($info, 200, [], JSON_PRETTY_PRINT);
+});
+
+// Simple debug without database
+Route::get('/status', function () {
+    return response()->json([
+        'status' => 'OK',
+        'timestamp' => date('Y-m-d H:i:s'),
+        'php_version' => PHP_VERSION,
+        'laravel_version' => app()->version(),
+        'app_env' => env('APP_ENV'),
+        'memory_usage' => memory_get_usage(true),
+        'memory_peak' => memory_get_peak_usage(true),
+    ], 200, [], JSON_PRETTY_PRINT);
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
