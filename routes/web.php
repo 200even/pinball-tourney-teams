@@ -7,18 +7,16 @@ Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
 
-// Health check endpoint for Railway
-Route::get('/up', function () {
-    return response()->json([
-        'status' => 'ok',
-        'timestamp' => now()->toISOString(),
-        'service' => 'pinball-tournament-tracker'
-    ]);
-});
+// Health check is handled by Laravel's built-in health route in bootstrap/app.php
 
 // Simple test endpoint
 Route::get('/test', function () {
     return response('Laravel is working! ' . date('Y-m-d H:i:s'));
+});
+
+// Even simpler test
+Route::get('/hello', function () {
+    return 'Hello World!';
 });
 
 // Debug endpoint for Railway deployment

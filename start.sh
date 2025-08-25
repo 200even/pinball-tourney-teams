@@ -54,7 +54,9 @@ php artisan view:clear || echo "View clear failed"
 echo "Route caching disabled - using route discovery"
 
 echo "Testing routes..."
-php artisan route:list | head -5 || echo "Route list failed"
+php artisan route:list | head -10 || echo "Route list failed"
+echo "Checking specific routes..."
+php artisan route:list | grep -E "(test|debug|up)" || echo "Test routes not found"
 
 echo "Starting Laravel server..."
 exec php artisan serve --host=0.0.0.0 --port=${PORT:-8080} --verbose
