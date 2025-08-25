@@ -7,6 +7,15 @@ Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
 
+// Health check endpoint for Railway
+Route::get('/up', function () {
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now()->toISOString(),
+        'service' => 'pinball-tournament-tracker'
+    ]);
+});
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         $user = auth()->user();
