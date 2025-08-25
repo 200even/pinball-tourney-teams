@@ -16,6 +16,32 @@ Route::get('/up', function () {
     ]);
 });
 
+// Debug endpoint for Railway deployment
+Route::get('/debug', function () {
+    $info = [
+        'status' => 'Laravel is running',
+        'timestamp' => now()->toISOString(),
+        'php_version' => PHP_VERSION,
+        'laravel_version' => app()->version(),
+        'environment' => [
+            'APP_ENV' => env('APP_ENV'),
+            'APP_DEBUG' => env('APP_DEBUG'),
+            'DB_CONNECTION' => env('DB_CONNECTION'),
+            'APP_KEY_SET' => env('APP_KEY') ? 'Yes' : 'No',
+        ],
+        'database' => 'testing...'
+    ];
+    
+    try {
+        DB::connection()->getPdo();
+        $info['database'] = 'Connected successfully';
+    } catch (Exception $e) {
+        $info['database'] = 'Failed: ' . $e->getMessage();
+    }
+    
+    return response()->json($info, 200, [], JSON_PRETTY_PRINT);
+});
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         $user = auth()->user();
