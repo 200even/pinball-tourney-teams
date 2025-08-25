@@ -94,6 +94,18 @@ Route::get('/no-session', function () {
         'timestamp' => date('Y-m-d H:i:s'),
         'session_driver' => config('session.driver'),
         'db_connection' => config('database.default'),
+        'session_env' => env('SESSION_DRIVER'),
+    ]);
+})->withoutMiddleware(['web']);
+
+// Config check route
+Route::get('/config-check', function () {
+    return response()->json([
+        'session_driver_config' => config('session.driver'),
+        'session_driver_env' => env('SESSION_DRIVER'),
+        'session_driver_default' => env('SESSION_DRIVER', 'file'),
+        'config_cached' => app()->configurationIsCached(),
+        'timestamp' => date('Y-m-d H:i:s'),
     ]);
 })->withoutMiddleware(['web']);
 

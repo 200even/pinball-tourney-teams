@@ -37,9 +37,9 @@ else
     echo "APP_KEY is set"
 fi
 
-# Check if Laravel can start
+# Check if Laravel can start (don't cache config in production)
 echo "Testing Laravel configuration..."
-php artisan config:cache || echo "Config cache failed"
+echo "Skipping config cache to allow dynamic environment variables"
 
 # Check environment
 echo "Testing environment..."
@@ -65,6 +65,10 @@ echo "Clearing caches..."
 php artisan config:clear || echo "Config clear failed"
 php artisan route:clear || echo "Route clear failed"
 php artisan view:clear || echo "View clear failed"
+
+# Force session driver to file for Railway deployment
+export SESSION_DRIVER=file
+echo "Forced SESSION_DRIVER to file"
 
 # DON'T cache routes in production - causes issues with route discovery
 echo "Route caching disabled - using route discovery"
