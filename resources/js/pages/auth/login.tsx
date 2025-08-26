@@ -59,7 +59,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             </div>
 
                             <div className="flex items-center space-x-3">
-                                <Checkbox id="remember" name="remember" tabIndex={3} defaultChecked />
+                                <Checkbox id="remember" name="remember" value="1" tabIndex={3} defaultChecked />
                                 <Label htmlFor="remember">Keep me signed in</Label>
                             </div>
 
