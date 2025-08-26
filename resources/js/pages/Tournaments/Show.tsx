@@ -63,7 +63,6 @@ interface PageProps {
 }
 
 export default function TournamentShow({ tournament, standings, qrCodeUrl, availablePlayers }: PageProps) {
-    const { auth } = usePage<SharedData>().props;
     const [syncingData, setSyncingData] = useState(false);
     const [togglingAutoSync, setTogglingAutoSync] = useState(false);
     const [showQRCode, setShowQRCode] = useState(false);

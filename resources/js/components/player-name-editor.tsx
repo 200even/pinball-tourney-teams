@@ -28,7 +28,6 @@ interface PlayerNameEditorProps {
 
 
 export default function PlayerNameEditor({ tournament, players }: PlayerNameEditorProps) {
-    const { auth } = usePage<SharedData>().props;
     const [isOpen, setIsOpen] = useState(false);
     const [playerNames, setPlayerNames] = useState<Record<number, string>>(
         (players || []).reduce((acc, player) => ({ ...acc, [player.id]: player.name }), {})

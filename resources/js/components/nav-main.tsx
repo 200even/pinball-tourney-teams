@@ -31,7 +31,7 @@ export function NavMain() {
                     <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton asChild isActive={page.url.startsWith(item.href)} tooltip={{ children: item.title }}>
                             <Link href={item.href} prefetch>
-                                <Icon name={item.icon as any} className="h-4 w-4" />
+                                <Icon name={item.icon} className="h-4 w-4" />
                                 <span>{item.title}</span>
                             </Link>
                         </SidebarMenuButton>

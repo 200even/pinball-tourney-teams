@@ -50,7 +50,7 @@ export default function TeamManagement({ tournament, availablePlayers = [] }: Pr
     });
 
     // Form for editing team names
-    const { data: editData, setData: setEditData, put: editPut, processing: editing, errors: editErrors } = useForm({
+    const { data: editData, setData: setEditData, put: editPut, processing: editing } = useForm({
         name: '',
     });
 

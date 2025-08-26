@@ -40,9 +40,12 @@ return Application::configure(basePath: dirname(__DIR__))
             return redirect()->guest(route('login'));
         });
         
-        // Enable detailed error reporting for debugging (exclude auth exceptions)
+        // Enable detailed error reporting for debugging (exclude auth and validation exceptions)
         $exceptions->render(function (Throwable $e, $request) {
-            if (env('APP_DEBUG', false) && !$e instanceof AuthenticationException) {
+            if (env('APP_DEBUG', false) && 
+                !$e instanceof AuthenticationException &&
+                !$e instanceof \Illuminate\Validation\ValidationException &&
+                !app()->environment('testing')) {
                 return response()->json([
                     'error' => $e->getMessage(),
                     'file' => $e->getFile(),

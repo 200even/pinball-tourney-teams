@@ -81,7 +81,6 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
             });
             
             if (response.ok) {
-                const data = await response.json();
                 // Update the page data (in a real app, you'd use state management)
                 window.location.reload();
             }
