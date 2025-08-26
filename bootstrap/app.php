@@ -2,10 +2,13 @@
 
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -26,9 +29,20 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        // Enable detailed error reporting for debugging
+        // Handle authentication failures for Inertia requests properly
+        $exceptions->render(function (AuthenticationException $e, Request $request) {
+            if ($request->hasHeader('X-Inertia')) {
+                // For Inertia requests that are unauthenticated, force a full page redirect
+                return Inertia::location(route('login'));
+            }
+            
+            // For regular requests, redirect to login
+            return redirect()->guest(route('login'));
+        });
+        
+        // Enable detailed error reporting for debugging (exclude auth exceptions)
         $exceptions->render(function (Throwable $e, $request) {
-            if (env('APP_DEBUG', false)) {
+            if (env('APP_DEBUG', false) && !$e instanceof AuthenticationException) {
                 return response()->json([
                     'error' => $e->getMessage(),
                     'file' => $e->getFile(),
