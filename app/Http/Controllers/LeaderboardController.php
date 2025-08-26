@@ -21,7 +21,7 @@ class LeaderboardController extends Controller
             ->orderBy('round_number')
             ->get();
 
-        return Inertia::render('Leaderboard/Public', [
+        return Inertia::render('leaderboard/public', [
             'tournament' => $tournament,
             'standings' => $standings,
             'completedRounds' => $completedRounds,
