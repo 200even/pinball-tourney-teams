@@ -14,7 +14,9 @@ echo "Debug mode enabled for troubleshooting"
 # Force HTTPS for Railway deployment
 export FORCE_HTTPS=true
 export APP_URL=https://pinball-tourney-teams-production.up.railway.app
-echo "Forced HTTPS and set APP_URL for Railway" 
+export APP_NAME="Pinball Tournament Tracker"
+echo "Forced HTTPS and set APP_URL for Railway"
+echo "Set APP_NAME to: $APP_NAME" 
 echo "APP_KEY: ${APP_KEY:0:10}..." # Only show first 10 chars for security
 echo "DB_CONNECTION: $DB_CONNECTION"
 echo "DB_HOST: $DB_HOST"

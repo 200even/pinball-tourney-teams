@@ -1,0 +1,22 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <circle cx="32" cy="32" r="30" fill="#1a0033" stroke="#FF0080" stroke-width="3"/>
+  
+  <!-- Pinball machine -->
+  <rect x="16" y="12" width="32" height="40" rx="4" fill="none" stroke="#00FFFF" stroke-width="2"/>
+  
+  <!-- Flippers -->
+  <path d="M20 44 L28 40" stroke="#FF0080" stroke-width="3" stroke-linecap="round"/>
+  <path d="M44 44 L36 40" stroke="#FF0080" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- Pinball -->
+  <circle cx="32" cy="32" r="3" fill="#FFFF00" stroke="#FFD700" stroke-width="1"/>
+  
+  <!-- Bumpers -->
+  <circle cx="24" cy="24" r="2" fill="#FF0080"/>
+  <circle cx="40" cy="28" r="2" fill="#00FFFF"/>
+  
+  <!-- Score display -->
+  <rect x="18" y="14" width="28" height="4" fill="#000" stroke="#00FF00"/>
+  <text x="32" y="17" text-anchor="middle" fill="#00FF00" font-family="monospace" font-size="8">PINBALL</text>
+</svg>
