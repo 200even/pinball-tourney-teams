@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Head, Link, router, usePage } from '@inertiajs/react';
-import { type BreadcrumbItem, type SharedData } from '@/types';
+import { Head, Link, router } from '@inertiajs/react';
+import { type BreadcrumbItem } from '@/types';
 
 import Heading from '@/components/heading';
 import { Icon } from '@/components/ui/icon';

@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { type SharedData, type BreadcrumbItem } from '@/types';
+import { type BreadcrumbItem } from '@/types';
 import AppLayout from '@/layouts/app-layout';
 import TeamManagement from '@/components/team-management';
 
