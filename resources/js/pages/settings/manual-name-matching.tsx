@@ -152,11 +152,25 @@ export default function ManualNameMatching({ tournament_data, ranked_players, sh
         console.log('About to fetch:', saveRoute);
         console.log('Fetch method: POST');
         
+        // Create FormData for better Laravel compatibility
+        const formData = new FormData();
+        formData.append('matchplay_tournament_id', actualTournamentData.id);
+        
+        // Add each player name
+        Object.entries(playerNames).forEach(([playerId, playerName]) => {
+            if (playerName && playerName.trim()) {
+                formData.append(`player_names[${playerId}]`, playerName.trim());
+            }
+        });
+        
+        // Add CSRF token
+        if (token) {
+            formData.append('_token', token);
+        }
+        
         // Use XMLHttpRequest which we know works
         const xhr = new XMLHttpRequest();
         xhr.open('POST', saveRoute);
-        xhr.setRequestHeader('Content-Type', 'application/json');
-        xhr.setRequestHeader('X-XSRF-TOKEN', token || '');
         xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
         xhr.setRequestHeader('Accept', 'application/json');
         
@@ -167,7 +181,7 @@ export default function ManualNameMatching({ tournament_data, ranked_players, sh
                 alert('Player names saved successfully!');
                 window.location.reload();
             } else {
-                console.log('Save failed with status:', xhr.status);
+                console.log('Save failed with status:', xhr.status, 'Response:', xhr.responseText);
                 alert('Failed to save names. Please try again.');
             }
         };
@@ -178,10 +192,7 @@ export default function ManualNameMatching({ tournament_data, ranked_players, sh
             alert('Network error occurred. Please try again.');
         };
         
-        xhr.send(JSON.stringify({
-            matchplay_tournament_id: actualTournamentData.id,
-            player_names: playerNames,
-        }));
+        xhr.send(formData);
     };
 
     const getPositionColor = (position: number) => {
