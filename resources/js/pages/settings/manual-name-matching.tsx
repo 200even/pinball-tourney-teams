@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
+import { route } from 'ziggy-js';
 import { type SharedData, type BreadcrumbItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -127,72 +128,35 @@ export default function ManualNameMatching({ tournament_data, ranked_players, sh
             return;
         }
 
-        const saveRoute = '/settings/manual-name-matching/save';
         console.log('Saving names...', { 
             tournament_id: actualTournamentData.id, 
             player_count: Object.keys(playerNames).length,
-            method: 'POST',
-            current_url: window.location.href,
-            save_route: saveRoute
+            method: 'POST'
         });
 
         setSaving(true);
 
-        // Get CSRF token from cookie (Laravel's default)
-        function getCookie(name: string) {
-            const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
-            if (parts.length === 2) return parts.pop()?.split(';').shift();
-        }
-        
-        const token = getCookie('XSRF-TOKEN') ? decodeURIComponent(getCookie('XSRF-TOKEN') || '') : 
-                     document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        
-        console.log('CSRF token:', token ? 'found' : 'not found');
-        console.log('About to fetch:', saveRoute);
-        console.log('Fetch method: POST');
-        
-        // Create FormData for better Laravel compatibility
-        const formData = new FormData();
-        formData.append('matchplay_tournament_id', actualTournamentData.id);
-        
-        // Add each player name
-        Object.entries(playerNames).forEach(([playerId, playerName]) => {
-            if (playerName && playerName.trim()) {
-                formData.append(`player_names[${playerId}]`, playerName.trim());
-            }
-        });
-        
-        // Add CSRF token
-        if (token) {
-            formData.append('_token', token);
-        }
-        
-        // Use XMLHttpRequest which we know works
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', saveRoute);
-        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-        xhr.setRequestHeader('Accept', 'application/json');
-        
-        xhr.onload = function() {
-            setSaving(false);
-            if (xhr.status >= 200 && xhr.status < 300) {
+        // Use Inertia router which handles CSRF automatically
+        router.post(route('settings.manual-name-matching.save'), {
+            matchplay_tournament_id: actualTournamentData.id,
+            player_names: playerNames,
+        }, {
+            onSuccess: () => {
+                setSaving(false);
                 console.log('Names saved successfully');
                 alert('Player names saved successfully!');
+                // Stay on the same page and reload data
                 window.location.reload();
-            } else {
-                console.log('Save failed with status:', xhr.status, 'Response:', xhr.responseText);
-                alert('Failed to save names. Please try again.');
-            }
-        };
-        
-        xhr.onerror = function() {
-            setSaving(false);
-            console.log('XHR Error occurred');
-            alert('Network error occurred. Please try again.');
-        };
-        
-        xhr.send(formData);
+            },
+            onError: (errors) => {
+                setSaving(false);
+                console.log('Save failed with errors:', errors);
+                alert('Failed to save names: ' + Object.values(errors).join(', '));
+            },
+            onFinish: () => {
+                setSaving(false);
+            },
+        });
     };
 
     const getPositionColor = (position: number) => {
