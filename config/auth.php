@@ -112,4 +112,19 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Remember Token Lifetime
+    |--------------------------------------------------------------------------
+    |
+    | This option controls how long "remember me" tokens remain valid.
+    | When users check "Keep me signed in", they'll stay logged in for
+    | this duration even after closing their browser.
+    |
+    | Duration is in minutes. Default is 30 days (43200 minutes).
+    |
+    */
+
+    'remember_token_lifetime' => env('AUTH_REMEMBER_TOKEN_LIFETIME', 43200), // 30 days
+
 ];
