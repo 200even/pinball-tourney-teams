@@ -4,13 +4,11 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    try {
-        return Inertia::render('welcome');
-    } catch (Exception $e) {
-        // Fallback if Inertia/frontend assets fail
-        return response()->view('welcome-fallback', [
-            'error' => $e->getMessage()
-        ]);
+    // Redirect to appropriate page based on authentication
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    } else {
+        return redirect()->route('login');
     }
 })->name('home');
 
