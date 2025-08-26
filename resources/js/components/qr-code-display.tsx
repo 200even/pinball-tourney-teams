@@ -41,7 +41,7 @@ export default function QRCodeDisplay({ url, title, onClose }: Props) {
 
     return (
         <Dialog open={true} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader className="text-center">
                     <DialogTitle>QR Code for Leaderboard</DialogTitle>
                     <DialogDescription>
@@ -49,18 +49,18 @@ export default function QRCodeDisplay({ url, title, onClose }: Props) {
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-6">
+                <div className="space-y-6 px-2">
                     {/* QR Code */}
                     <div className="flex justify-center">
-                        <div className="bg-white dark:bg-gray-100 p-4 rounded-xl border shadow-sm">
+                        <div className="bg-white dark:bg-gray-100 p-6 rounded-xl border shadow-sm">
                             {qrCodeUrl ? (
                                 <img 
                                     src={qrCodeUrl} 
                                     alt="QR Code for tournament leaderboard"
-                                    className="w-72 h-72 rounded-lg"
+                                    className="w-64 h-64 rounded-lg"
                                 />
                             ) : (
-                                <div className="w-72 h-72 rounded-lg flex items-center justify-center bg-gray-50">
+                                <div className="w-64 h-64 rounded-lg flex items-center justify-center bg-gray-50">
                                     <Icon name="loader-2" className="h-8 w-8 animate-spin text-gray-400" />
                                 </div>
                             )}
@@ -70,15 +70,15 @@ export default function QRCodeDisplay({ url, title, onClose }: Props) {
                     {/* URL Display */}
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Direct Link:</label>
-                        <div className="flex items-center gap-2">
-                            <div className="flex-1 p-2 bg-muted rounded text-sm font-mono truncate">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                            <div className="flex-1 p-3 bg-muted rounded-lg text-sm font-mono break-all">
                                 {url}
                             </div>
                             <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={copyToClipboard}
-                                className="gap-2"
+                                className="gap-2 whitespace-nowrap"
                             >
                                 {copied ? (
                                     <>
@@ -128,7 +128,7 @@ export default function QRCodeDisplay({ url, title, onClose }: Props) {
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex items-center gap-3 pt-2 border-t border-border/50">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-4 mt-2 border-t border-border/50">
                         <Button
                             onClick={downloadQRCode}
                             disabled={!qrCodeUrl}
@@ -140,7 +140,7 @@ export default function QRCodeDisplay({ url, title, onClose }: Props) {
                         <Button
                             variant="outline"
                             onClick={onClose}
-                            className="px-6"
+                            className="sm:px-8"
                         >
                             Close
                         </Button>
