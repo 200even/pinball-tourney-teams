@@ -127,7 +127,7 @@ export default function ManualNameMatching({ tournament_data, ranked_players, sh
             return;
         }
 
-        const saveRoute = 'http://localhost:8000/settings/manual-name-matching/save';
+        const saveRoute = '/settings/manual-name-matching/save';
         console.log('Saving names...', { 
             tournament_id: actualTournamentData.id, 
             player_count: Object.keys(playerNames).length,
