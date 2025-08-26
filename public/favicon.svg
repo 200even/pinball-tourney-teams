@@ -20,7 +20,6 @@
   
   <!-- Score display -->
   <rect x="9" y="7" width="14" height="2" fill="#000" stroke="#00FF00" stroke-width="0.5"/>
-  <text x="16" y="8.5" text-anchor="middle" fill="#00FF00" font-family="monospace" font-size="6">SCORE</text>
   
   <!-- Neon glow effects -->
   <defs>
