@@ -118,7 +118,7 @@ class ManualNameMatchingController extends Controller
         $request->validate([
             'matchplay_tournament_id' => 'required|string',
             'player_names' => 'required|array',
-            'player_names.*' => 'required|string|max:255',
+            'player_names.*' => 'nullable|string|max:255',
         ]);
 
         try {
