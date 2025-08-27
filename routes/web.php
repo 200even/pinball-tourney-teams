@@ -291,6 +291,35 @@ Route::get('/create-test-user', function () {
     }
 })->withoutMiddleware(['web']);
 
+// Simple login test form
+Route::get('/test-login-form', function () {
+    return '<!DOCTYPE html>
+<html>
+<head><title>Login Test</title></head>
+<body>
+    <h1>Test Login Credentials</h1>
+    <form action="/debug-login" method="POST">
+        <div>
+            <label>Email:</label><br>
+            <input type="email" name="email" required style="width: 300px; padding: 5px;">
+        </div><br>
+        <div>
+            <label>Password:</label><br>
+            <input type="password" name="password" required style="width: 300px; padding: 5px;">
+        </div><br>
+        <button type="submit" style="padding: 10px 20px;">Test Login</button>
+    </form>
+    <br>
+    <p><strong>Known users:</strong></p>
+    <ul>
+        <li>mike.brown475@gmail.com (Michael Brown)</li>
+        <li>esfergus+1@gmail.com (Scott Ferguson)</li>
+        <li>test@test.com (Foo Bar)</li>
+    </ul>
+</body>
+</html>';
+})->withoutMiddleware(['web']);
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         $user = auth()->user();
