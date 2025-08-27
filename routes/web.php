@@ -398,6 +398,49 @@ Route::post('/reset-user-password', function (\Illuminate\Http\Request $request)
     }
 })->withoutMiddleware(['web']);
 
+// Test Matchplay API endpoints
+Route::get('/test-matchplay-api/{tournamentId}', function ($tournamentId) {
+    try {
+        // Use the first user with a Matchplay token for testing
+        $user = \App\Models\User::whereNotNull('matchplay_api_token')->first();
+        
+        if (!$user) {
+            return response()->json([
+                'error' => 'No user with Matchplay API token found'
+            ], 400, [], JSON_PRETTY_PRINT);
+        }
+        
+        $matchplayService = new \App\Services\MatchplayApiService($user);
+        
+        // Test tournament info
+        $tournamentData = $matchplayService->getTournament($tournamentId);
+        
+        // Test tournament players
+        $playersData = $matchplayService->getTournamentPlayers($tournamentId);
+        
+        // Test tournament standings
+        $standingsData = $matchplayService->getTournamentStandings($tournamentId);
+        
+        return response()->json([
+            'tournament_id' => $tournamentId,
+            'user_email' => $user->email,
+            'tournament_info' => $tournamentData,
+            'players_count' => count($playersData),
+            'players_data' => $playersData,
+            'standings_count' => count($standingsData),
+            'standings_data' => $standingsData,
+            'timestamp' => date('Y-m-d H:i:s'),
+        ], 200, [], JSON_PRETTY_PRINT);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+            'tournament_id' => $tournamentId,
+        ], 500, [], JSON_PRETTY_PRINT);
+    }
+})->withoutMiddleware(['web']);
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         $user = auth()->user();
