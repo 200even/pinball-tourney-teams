@@ -195,6 +195,8 @@ Route::get('/debug-users', function () {
                     'has_matchplay_token' => !empty($user->matchplay_api_token),
                     'tournaments_count' => $user->tournaments()->count(),
                     'created_at' => $user->created_at,
+                    'email_verified_at' => $user->email_verified_at,
+                    'password_set' => !empty($user->password),
                 ];
             });
             
@@ -207,6 +209,45 @@ Route::get('/debug-users', function () {
         return response()->json([
             'error' => $e->getMessage(),
             'timestamp' => date('Y-m-d H:i:s'),
+        ], 500, [], JSON_PRETTY_PRINT);
+    }
+})->withoutMiddleware(['web']);
+
+// Debug login attempt
+Route::post('/debug-login', function (\Illuminate\Http\Request $request) {
+    try {
+        $email = $request->input('email');
+        $password = $request->input('password');
+        
+        // Check if user exists
+        $user = \App\Models\User::where('email', $email)->first();
+        
+        if (!$user) {
+            return response()->json([
+                'user_exists' => false,
+                'email_searched' => $email,
+                'total_users' => \App\Models\User::count(),
+                'all_emails' => \App\Models\User::pluck('email')->toArray(),
+            ], 200, [], JSON_PRETTY_PRINT);
+        }
+        
+        // Check password
+        $passwordMatches = \Hash::check($password, $user->password);
+        
+        return response()->json([
+            'user_exists' => true,
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'name' => $user->name,
+            'password_matches' => $passwordMatches,
+            'email_verified' => !is_null($user->email_verified_at),
+            'created_at' => $user->created_at,
+        ], 200, [], JSON_PRETTY_PRINT);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
         ], 500, [], JSON_PRETTY_PRINT);
     }
 })->withoutMiddleware(['web']);
