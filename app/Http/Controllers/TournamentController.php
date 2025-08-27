@@ -60,7 +60,11 @@ class TournamentController extends Controller
         try {
             \Log::info('Tournament creation started', [
                 'user_id' => auth()->id(),
-                'matchplay_tournament_id' => $request->matchplay_tournament_id
+                'user_email' => auth()->user()->email ?? 'N/A',
+                'user_name' => auth()->user()->name ?? 'N/A',
+                'matchplay_tournament_id' => $request->matchplay_tournament_id,
+                'request_ip' => $request->ip(),
+                'user_agent' => $request->userAgent()
             ]);
 
             $matchplayService = new MatchplayApiService(auth()->user());
@@ -78,8 +82,15 @@ class TournamentController extends Controller
             // Handle nested data structure from Matchplay API
             $data = $tournamentData['data'] ?? $tournamentData;
 
+            $currentUserId = auth()->id();
+            \Log::info('About to create tournament', [
+                'user_id_for_tournament' => $currentUserId,
+                'authenticated_user_email' => auth()->user()->email,
+                'tournament_name' => $data['name'] ?? 'Unnamed Tournament'
+            ]);
+
             $tournament = Tournament::create([
-                'user_id' => auth()->id(),
+                'user_id' => $currentUserId,
                 'matchplay_tournament_id' => $request->matchplay_tournament_id,
                 'name' => $data['name'] ?? 'Unnamed Tournament',
                 'description' => $data['description'] ?? null,
