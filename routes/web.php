@@ -252,6 +252,45 @@ Route::post('/debug-login', function (\Illuminate\Http\Request $request) {
     }
 })->withoutMiddleware(['web']);
 
+// Create test user for debugging
+Route::get('/create-test-user', function () {
+    try {
+        $testEmail = 'test@example.com';
+        $testPassword = 'password123';
+        
+        // Check if user already exists
+        $existingUser = \App\Models\User::where('email', $testEmail)->first();
+        if ($existingUser) {
+            return response()->json([
+                'message' => 'Test user already exists',
+                'email' => $testEmail,
+                'user_id' => $existingUser->id,
+            ], 200, [], JSON_PRETTY_PRINT);
+        }
+        
+        // Create test user
+        $user = \App\Models\User::create([
+            'name' => 'Test User',
+            'email' => $testEmail,
+            'password' => \Hash::make($testPassword),
+            'email_verified_at' => now(),
+        ]);
+        
+        return response()->json([
+            'message' => 'Test user created successfully',
+            'email' => $testEmail,
+            'password' => $testPassword,
+            'user_id' => $user->id,
+        ], 200, [], JSON_PRETTY_PRINT);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ], 500, [], JSON_PRETTY_PRINT);
+    }
+})->withoutMiddleware(['web']);
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         $user = auth()->user();
