@@ -535,6 +535,51 @@ Route::get('/debug-player-sync/{tournamentId}', function ($tournamentId) {
     }
 })->withoutMiddleware(['web']);
 
+// Debug tournament player IDs field
+Route::get('/debug-tournament-players/{tournamentId}', function ($tournamentId) {
+    try {
+        $tournaments = \App\Models\Tournament::where('matchplay_tournament_id', $tournamentId)->get();
+        
+        $result = [];
+        foreach ($tournaments as $tournament) {
+            $storedPlayerIds = $tournament->tournament_player_ids ?? [];
+            $playersInDb = \App\Models\Player::whereIn('matchplay_player_id', $storedPlayerIds)->get();
+            
+            $result[] = [
+                'tournament_id' => $tournament->id,
+                'user_id' => $tournament->user_id,
+                'user_email' => $tournament->user->email ?? 'unknown',
+                'matchplay_tournament_id' => $tournament->matchplay_tournament_id,
+                'name' => $tournament->name,
+                'stored_player_ids_count' => count($storedPlayerIds),
+                'stored_player_ids' => $storedPlayerIds,
+                'players_found_in_db' => $playersInDb->count(),
+                'players_with_names' => $playersInDb->map(function($p) {
+                    return [
+                        'matchplay_player_id' => $p->matchplay_player_id,
+                        'name' => $p->name,
+                        'has_real_name' => !str_starts_with($p->name, 'Player '),
+                    ];
+                }),
+                'created_at' => $tournament->created_at,
+            ];
+        }
+        
+        return response()->json([
+            'matchplay_tournament_id' => $tournamentId,
+            'tournaments_found' => count($tournaments),
+            'tournaments' => $result,
+            'timestamp' => date('Y-m-d H:i:s'),
+        ], 200, [], JSON_PRETTY_PRINT);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+            'tournament_id' => $tournamentId,
+        ], 500, [], JSON_PRETTY_PRINT);
+    }
+})->withoutMiddleware(['web']);
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         $user = auth()->user();
