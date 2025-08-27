@@ -49,10 +49,14 @@ interface Tournament {
 }
 
 interface Standing {
+    id: number;
+    name: string;
+    generated_name: string;
     position: number;
-    team: Team;
     total_points: number;
     games_played: number;
+    player1: Player;
+    player2: Player;
 }
 
 interface PageProps {
@@ -185,10 +189,10 @@ export default function TournamentShow({ tournament, standings, qrCodeUrl, avail
                                                             </div>
                                                             <div>
                                                                 <div className="font-medium">
-                                                                    {standing.team?.name || standing.team?.generated_name || 'Unknown Team'}
+                                                                    {standing.name || standing.generated_name || 'Unknown Team'}
                                                                 </div>
                                                                 <div className="text-sm text-muted-foreground">
-                                                                    {standing.team?.player1?.name || 'Player 1'} & {standing.team?.player2?.name || 'Player 2'}
+                                                                    {standing.player1?.name || 'Player 1'} & {standing.player2?.name || 'Player 2'}
                                                                 </div>
                                                             </div>
                                                         </div>
