@@ -154,6 +154,33 @@ Route::get('/debug-tournaments', function () {
     }
 })->withoutMiddleware(['web']);
 
+// Test tournament creation without auth
+Route::get('/test-tournament-creation', function () {
+    try {
+        // Check if we can access the database
+        $userCount = \App\Models\User::count();
+        $tournamentCount = \App\Models\Tournament::count();
+        
+        // Check if users have required API tokens
+        $usersWithTokens = \App\Models\User::whereNotNull('matchplay_api_token')->count();
+        
+        return response()->json([
+            'database_accessible' => true,
+            'total_users' => $userCount,
+            'total_tournaments' => $tournamentCount,
+            'users_with_matchplay_tokens' => $usersWithTokens,
+            'recent_users' => \App\Models\User::latest()->limit(3)->pluck('email'),
+            'timestamp' => date('Y-m-d H:i:s'),
+        ], 200, [], JSON_PRETTY_PRINT);
+    } catch (\Exception $e) {
+        return response()->json([
+            'database_accessible' => false,
+            'error' => $e->getMessage(),
+            'timestamp' => date('Y-m-d H:i:s'),
+        ], 500, [], JSON_PRETTY_PRINT);
+    }
+})->withoutMiddleware(['web']);
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         $user = auth()->user();
