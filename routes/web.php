@@ -320,6 +320,84 @@ Route::get('/test-login-form', function () {
 </html>';
 })->withoutMiddleware(['web']);
 
+// Password reset form
+Route::get('/reset-password-form', function () {
+    return '<!DOCTYPE html>
+<html>
+<head><title>Reset Password</title></head>
+<body>
+    <h1>Reset User Password & Verify Email</h1>
+    <form action="/reset-user-password" method="POST">
+        <div>
+            <label>Email:</label><br>
+            <input type="email" name="email" required style="width: 300px; padding: 5px;" placeholder="user@example.com">
+        </div><br>
+        <div>
+            <label>New Password:</label><br>
+            <input type="text" name="new_password" required style="width: 300px; padding: 5px;" placeholder="newpassword123">
+        </div><br>
+        <button type="submit" style="padding: 10px 20px;">Reset Password & Verify Email</button>
+    </form>
+    <br>
+    <p><strong>This will:</strong></p>
+    <ul>
+        <li>Set a new password for the user</li>
+        <li>Mark their email as verified</li>
+        <li>Allow them to log in immediately</li>
+    </ul>
+    <p><strong>Known users:</strong></p>
+    <ul>
+        <li>mike.brown475@gmail.com (Michael Brown)</li>
+        <li>esfergus+1@gmail.com (Scott Ferguson)</li>
+        <li>test@test.com (Foo Bar)</li>
+    </ul>
+</body>
+</html>';
+})->withoutMiddleware(['web']);
+
+// Reset user password for debugging
+Route::post('/reset-user-password', function (\Illuminate\Http\Request $request) {
+    try {
+        $email = $request->input('email');
+        $newPassword = $request->input('new_password');
+        
+        if (!$email || !$newPassword) {
+            return response()->json([
+                'error' => 'Email and new_password are required'
+            ], 400, [], JSON_PRETTY_PRINT);
+        }
+        
+        $user = \App\Models\User::where('email', $email)->first();
+        
+        if (!$user) {
+            return response()->json([
+                'error' => 'User not found',
+                'email' => $email
+            ], 404, [], JSON_PRETTY_PRINT);
+        }
+        
+        // Update password and verify email
+        $user->update([
+            'password' => \Hash::make($newPassword),
+            'email_verified_at' => now(),
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Password reset and email verified successfully',
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'new_password' => $newPassword,
+        ], 200, [], JSON_PRETTY_PRINT);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ], 500, [], JSON_PRETTY_PRINT);
+    }
+})->withoutMiddleware(['web']);
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         $user = auth()->user();
