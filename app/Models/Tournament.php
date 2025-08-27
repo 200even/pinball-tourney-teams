@@ -89,10 +89,14 @@ class Tournament extends Model
             ->get()
             ->map(function ($team, $index) {
                 return [
-                    'position' => $index + 1,
-                    'team' => $team,
+                    'id' => $team->id,
+                    'name' => $team->name,
+                    'generated_name' => $team->generated_name,
                     'total_points' => $team->total_points,
                     'games_played' => $team->games_played,
+                    'position' => $index + 1,
+                    'player1' => $team->player1,
+                    'player2' => $team->player2,
                 ];
             })
             ->toArray();

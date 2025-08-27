@@ -54,7 +54,7 @@ class TournamentController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'matchplay_tournament_id' => 'required|string|unique:tournaments,matchplay_tournament_id',
+            'matchplay_tournament_id' => 'required|string',
         ]);
 
         try {
