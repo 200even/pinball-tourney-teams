@@ -469,6 +469,72 @@ Route::get('/debug-players', function () {
     }
 })->withoutMiddleware(['web']);
 
+// Debug player sync discrepancy for tournament 206710
+Route::get('/debug-player-sync/{tournamentId}', function ($tournamentId) {
+    try {
+        $user = \App\Models\User::whereNotNull('matchplay_api_token')->first();
+        if (!$user) {
+            return response()->json(['error' => 'No user with Matchplay API token found'], 404);
+        }
+        
+        $matchplayService = new \App\Services\MatchplayApiService($user);
+        $playersData = $matchplayService->getTournamentPlayers($tournamentId);
+        
+        // Get Matchplay player IDs
+        $matchplayPlayerIds = collect($playersData)->pluck('playerId')->sort()->values();
+        
+        // Get existing players from database for these IDs
+        $existingPlayers = \App\Models\Player::whereIn('matchplay_player_id', $matchplayPlayerIds)
+            ->get()
+            ->map(function ($player) {
+                return [
+                    'id' => $player->id,
+                    'matchplay_player_id' => $player->matchplay_player_id,
+                    'name' => $player->name,
+                    'created_at' => $player->created_at,
+                    'matchplay_data' => $player->matchplay_data,
+                ];
+            });
+            
+        // Get ALL players in database (to find extras)
+        $allPlayers = \App\Models\Player::all()
+            ->map(function ($player) {
+                return [
+                    'id' => $player->id,
+                    'matchplay_player_id' => $player->matchplay_player_id,
+                    'name' => $player->name,
+                    'created_at' => $player->created_at,
+                ];
+            });
+            
+        $existingPlayerIds = $existingPlayers->pluck('matchplay_player_id')->sort()->values();
+        
+        // Find discrepancies
+        $onlyInMatchplay = $matchplayPlayerIds->diff($existingPlayerIds);
+        $onlyInDatabase = $existingPlayerIds->diff($matchplayPlayerIds);
+        
+        return response()->json([
+            'tournament_id' => $tournamentId,
+            'matchplay_players_count' => count($playersData),
+            'database_players_count' => $existingPlayers->count(),
+            'total_database_players' => $allPlayers->count(),
+            'matchplay_player_ids' => $matchplayPlayerIds,
+            'database_player_ids' => $existingPlayerIds,
+            'only_in_matchplay' => $onlyInMatchplay,
+            'only_in_database' => $onlyInDatabase,
+            'existing_players' => $existingPlayers,
+            'all_database_players' => $allPlayers,
+            'timestamp' => date('Y-m-d H:i:s'),
+        ], 200, [], JSON_PRETTY_PRINT);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+            'tournament_id' => $tournamentId,
+        ], 500, [], JSON_PRETTY_PRINT);
+    }
+})->withoutMiddleware(['web']);
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         $user = auth()->user();
