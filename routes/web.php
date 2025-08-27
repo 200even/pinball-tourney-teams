@@ -181,6 +181,36 @@ Route::get('/test-tournament-creation', function () {
     }
 })->withoutMiddleware(['web']);
 
+// Debug user accounts
+Route::get('/debug-users', function () {
+    try {
+        $users = \App\Models\User::latest()
+            ->limit(10)
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'has_matchplay_token' => !empty($user->matchplay_api_token),
+                    'tournaments_count' => $user->tournaments()->count(),
+                    'created_at' => $user->created_at,
+                ];
+            });
+            
+        return response()->json([
+            'total_users' => \App\Models\User::count(),
+            'users' => $users,
+            'timestamp' => date('Y-m-d H:i:s'),
+        ], 200, [], JSON_PRETTY_PRINT);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'timestamp' => date('Y-m-d H:i:s'),
+        ], 500, [], JSON_PRETTY_PRINT);
+    }
+})->withoutMiddleware(['web']);
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         $user = auth()->user();
