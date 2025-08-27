@@ -58,6 +58,11 @@ class TournamentController extends Controller
         ]);
 
         try {
+            \Log::info('Tournament creation started', [
+                'user_id' => auth()->id(),
+                'matchplay_tournament_id' => $request->matchplay_tournament_id
+            ]);
+
             $matchplayService = new MatchplayApiService(auth()->user());
             
             // Verify tournament exists and get data
@@ -67,6 +72,8 @@ class TournamentController extends Controller
                     'matchplay_tournament_id' => 'Tournament not found in Matchplay API.',
                 ]);
             }
+
+            \Log::info('Tournament data retrieved from Matchplay API');
 
             // Handle nested data structure from Matchplay API
             $data = $tournamentData['data'] ?? $tournamentData;
@@ -82,13 +89,38 @@ class TournamentController extends Controller
                 'matchplay_data' => $tournamentData,
             ]);
 
+            \Log::info('Tournament created successfully', [
+                'tournament_id' => $tournament->id,
+                'tournament_name' => $tournament->name
+            ]);
+
             // Import players and create rounds
-            $this->importTournamentData($tournament);
+            try {
+                $this->importTournamentData($tournament);
+                \Log::info('Tournament data import completed successfully');
+            } catch (\Exception $importException) {
+                \Log::error('Tournament data import failed', [
+                    'tournament_id' => $tournament->id,
+                    'error' => $importException->getMessage(),
+                    'trace' => $importException->getTraceAsString()
+                ]);
+                // Don't fail the entire creation if import fails
+            }
+
+            \Log::info('Redirecting to tournament show page', [
+                'tournament_id' => $tournament->id
+            ]);
 
             return redirect()->route('tournaments.show', $tournament)
                 ->with('success', 'Tournament created successfully!');
 
         } catch (\Exception $e) {
+            \Log::error('Tournament creation failed', [
+                'user_id' => auth()->id(),
+                'matchplay_tournament_id' => $request->matchplay_tournament_id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return back()->withErrors(['error' => 'Failed to create tournament: ' . $e->getMessage()]);
         }
     }

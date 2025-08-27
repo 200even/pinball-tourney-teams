@@ -123,6 +123,37 @@ Route::get('/db-env', function () {
     ]);
 })->withoutMiddleware(['web']);
 
+// Debug tournament creation
+Route::get('/debug-tournaments', function () {
+    try {
+        $tournaments = \App\Models\Tournament::with('user')
+            ->latest()
+            ->limit(10)
+            ->get()
+            ->map(function ($tournament) {
+                return [
+                    'id' => $tournament->id,
+                    'name' => $tournament->name,
+                    'matchplay_tournament_id' => $tournament->matchplay_tournament_id,
+                    'user_id' => $tournament->user_id,
+                    'user_email' => $tournament->user->email ?? 'N/A',
+                    'created_at' => $tournament->created_at,
+                ];
+            });
+            
+        return response()->json([
+            'total_tournaments' => \App\Models\Tournament::count(),
+            'recent_tournaments' => $tournaments,
+            'timestamp' => date('Y-m-d H:i:s'),
+        ], 200, [], JSON_PRETTY_PRINT);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'timestamp' => date('Y-m-d H:i:s'),
+        ], 500, [], JSON_PRETTY_PRINT);
+    }
+})->withoutMiddleware(['web']);
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         $user = auth()->user();
