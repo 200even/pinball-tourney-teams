@@ -441,6 +441,34 @@ Route::get('/test-matchplay-api/{tournamentId}', function ($tournamentId) {
     }
 })->withoutMiddleware(['web']);
 
+// Debug local players database
+Route::get('/debug-players', function () {
+    try {
+        $players = \App\Models\Player::latest()
+            ->limit(50)
+            ->get()
+            ->map(function ($player) {
+                return [
+                    'id' => $player->id,
+                    'matchplay_player_id' => $player->matchplay_player_id,
+                    'name' => $player->name,
+                    'created_at' => $player->created_at,
+                ];
+            });
+            
+        return response()->json([
+            'total_players' => \App\Models\Player::count(),
+            'recent_players' => $players,
+            'timestamp' => date('Y-m-d H:i:s'),
+        ], 200, [], JSON_PRETTY_PRINT);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'timestamp' => date('Y-m-d H:i:s'),
+        ], 500, [], JSON_PRETTY_PRINT);
+    }
+})->withoutMiddleware(['web']);
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         $user = auth()->user();
