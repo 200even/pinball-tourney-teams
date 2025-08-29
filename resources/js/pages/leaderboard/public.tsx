@@ -12,6 +12,15 @@ interface Player {
     matchplay_player_id: string;
 }
 
+interface RoundScore {
+    round_number: number;
+    round_name: string;
+    player1_points: number;
+    player2_points: number;
+    total_points: number;
+    round_status: string;
+}
+
 interface Team {
     id: number;
     name: string;
@@ -21,6 +30,12 @@ interface Team {
     position: number;
     player1: Player;
     player2: Player;
+    player1_individual_score: number;
+    player1_games_played: number;
+    player2_individual_score: number;
+    player2_games_played: number;
+    round_scores: RoundScore[];
+    is_in_progress: boolean;
 }
 
 interface Round {
@@ -43,13 +58,16 @@ interface Props {
     tournament: Tournament;
     standings: Team[];
     completedRounds: Round[];
+    allRounds: Round[];
     lastUpdated: string;
 }
 
-export default function PublicLeaderboard({ tournament, standings, completedRounds, lastUpdated }: Props) {
+export default function PublicLeaderboard({ tournament, standings, completedRounds, allRounds, lastUpdated }: Props) {
     const [autoRefresh, setAutoRefresh] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+    const [viewMode, setViewMode] = useState<'summary' | 'rounds'>('summary');
+    const [expandedTeam, setExpandedTeam] = useState<number | null>(null);
 
     // Auto-refresh every 30 seconds
     useEffect(() => {
@@ -91,19 +109,44 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
         }
     };
 
-    const getPositionDisplay = (position: number) => {
-        if (position === 1) return '🥇';
-        if (position === 2) return '🥈';
-        if (position === 3) return '🥉';
-        return position.toString();
+    const isComplete = tournament.status === 'completed';
+    
+    const getPositionDisplay = (position: number, ties: number[] = []) => {
+        // Only show medals for completed tournaments
+        if (isComplete) {
+            if (position === 1) return '🥇';
+            if (position === 2) return '🥈';
+            if (position === 3) return '🥉';
+        }
+        
+        // Show tie indicator if there are multiple teams with same position
+        const isTied = ties.filter(p => p === position).length > 1;
+        return isTied ? `T${position}` : position.toString();
     };
 
-    const getPositionClass = (position: number) => {
-        if (position === 1) return 'bg-yellow-500/10 border-yellow-500/20 text-yellow-600 dark:text-yellow-400';
-        if (position === 2) return 'bg-gray-400/10 border-gray-400/20 text-gray-600 dark:text-gray-400';
-        if (position === 3) return 'bg-amber-600/10 border-amber-600/20 text-amber-600 dark:text-amber-400';
-        return 'bg-muted/30 border-muted';
+    const getPositionClass = (position: number, isInProgress: boolean = false) => {
+        let baseClass = '';
+        
+        if (isComplete) {
+            if (position === 1) baseClass = 'bg-yellow-500/10 border-yellow-500/20 text-yellow-600 dark:text-yellow-400';
+            else if (position === 2) baseClass = 'bg-gray-400/10 border-gray-400/20 text-gray-600 dark:text-gray-400';
+            else if (position === 3) baseClass = 'bg-amber-600/10 border-amber-600/20 text-amber-600 dark:text-amber-400';
+            else baseClass = 'bg-muted/30 border-muted';
+        } else {
+            baseClass = 'bg-muted/30 border-muted';
+        }
+        
+        // Add in-progress styling
+        if (isInProgress) {
+            baseClass += ' border-l-4 border-l-blue-500 bg-blue-50/50 dark:bg-blue-950/20';
+        }
+        
+        return baseClass;
     };
+    
+    // Calculate ties for display
+    const positions = standings.map(team => team.position);
+    const ties = positions;
 
     return (
         <div className="min-h-screen bg-background">
@@ -198,12 +241,39 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
                 {/* Leaderboard */}
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Icon name="trophy" className="h-5 w-5" />
-                            Team Standings
+                        <CardTitle className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Icon name="trophy" className="h-5 w-5" />
+                                Team Standings
+                                {!isComplete && (
+                                    <Badge variant="outline" className="ml-2">
+                                        Live
+                                    </Badge>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant={viewMode === 'summary' ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setViewMode('summary')}
+                                >
+                                    Summary
+                                </Button>
+                                <Button
+                                    variant={viewMode === 'rounds' ? 'default' : 'outline'}
+                                    size="sm"
+                                    onClick={() => setViewMode('rounds')}
+                                    disabled={allRounds.length === 0}
+                                >
+                                    By Round
+                                </Button>
+                            </div>
                         </CardTitle>
                         <CardDescription>
-                            Combined scores from both team members
+                            {viewMode === 'summary' 
+                                ? 'Individual and combined scores from both team members'
+                                : 'Round-by-round breakdown of team performance'
+                            }
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -216,29 +286,93 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
                         ) : (
                             <div className="space-y-2">
                                 {standings.map((team) => (
-                                    <div 
-                                        key={team.id}
-                                        className={`flex items-center gap-4 p-4 rounded-lg border transition-all duration-200 ${getPositionClass(team.position)}`}
-                                    >
-                                        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-background border font-bold text-lg">
-                                            {getPositionDisplay(team.position)}
-                                        </div>
+                                    <div key={team.id}>
+                                        <div 
+                                            className={`flex items-center gap-4 p-4 rounded-lg border transition-all duration-200 cursor-pointer ${getPositionClass(team.position, team.is_in_progress)}`}
+                                            onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}
+                                        >
+                                            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-background border font-bold text-lg">
+                                                {getPositionDisplay(team.position, ties)}
+                                            </div>
 
-                                        <div className="flex-1 min-w-0">
-                                            <h3 className="font-semibold text-lg truncate">{team.name}</h3>
-                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                <span>{team.player1.name}</span>
-                                                <Icon name="plus" className="h-3 w-3" />
-                                                <span>{team.player2.name}</span>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <h3 className="font-semibold text-lg truncate">{team.name}</h3>
+                                                    {team.is_in_progress && (
+                                                        <Badge variant="secondary" className="text-xs">
+                                                            <Icon name="play" className="h-3 w-3 mr-1" />
+                                                            In Progress
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                                
+                                                {viewMode === 'summary' ? (
+                                                    <div className="space-y-1">
+                                                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                                            <span className="flex items-center gap-1">
+                                                                {team.player1.name}
+                                                                <span className="font-mono text-xs">({team.player1_individual_score}pts)</span>
+                                                            </span>
+                                                            <Icon name="plus" className="h-3 w-3" />
+                                                            <span className="flex items-center gap-1">
+                                                                {team.player2.name}
+                                                                <span className="font-mono text-xs">({team.player2_individual_score}pts)</span>
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-xs text-muted-foreground">
+                                                            {team.player1_games_played + team.player2_games_played} total games played
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                        <span>{team.player1.name}</span>
+                                                        <Icon name="plus" className="h-3 w-3" />
+                                                        <span>{team.player2.name}</span>
+                                                        <Icon name="chevron-down" className={`h-4 w-4 transition-transform ${expandedTeam === team.id ? 'rotate-180' : ''}`} />
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="text-right">
+                                                <div className="text-2xl font-bold">{team.total_points}</div>
+                                                <div className="text-sm text-muted-foreground">
+                                                    {team.games_played} games
+                                                </div>
                                             </div>
                                         </div>
 
-                                        <div className="text-right">
-                                            <div className="text-2xl font-bold">{team.total_points}</div>
-                                            <div className="text-sm text-muted-foreground">
-                                                {team.games_played} games
+                                        {/* Expanded Round Details */}
+                                        {viewMode === 'rounds' && expandedTeam === team.id && team.round_scores.length > 0 && (
+                                            <div className="mt-2 ml-16 mr-4 space-y-2 border-l-2 border-muted pl-4">
+                                                {team.round_scores.map((round) => (
+                                                    <div key={round.round_number} className="flex items-center justify-between py-2 border-b border-muted/30 last:border-0">
+                                                        <div className="flex items-center gap-3">
+                                                            <Badge variant="outline" className="text-xs">
+                                                                R{round.round_number}
+                                                            </Badge>
+                                                            <span className="text-sm font-medium">{round.round_name}</span>
+                                                            {round.round_status === 'active' && (
+                                                                <Badge variant="secondary" className="text-xs">
+                                                                    <Icon name="play" className="h-3 w-3 mr-1" />
+                                                                    Active
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-4 text-sm">
+                                                            <span className="text-muted-foreground">
+                                                                {team.player1.name}: <span className="font-mono">{round.player1_points}</span>
+                                                            </span>
+                                                            <span className="text-muted-foreground">
+                                                                {team.player2.name}: <span className="font-mono">{round.player2_points}</span>
+                                                            </span>
+                                                            <span className="font-bold">
+                                                                Total: {round.total_points}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
