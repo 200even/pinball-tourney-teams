@@ -43,7 +43,24 @@ class LeaderboardController extends Controller
                 ];
             })->sortBy('round_number')->values();
 
+            // Calculate total from individual API scores for consistency
+            $apiTotalPoints = ($player1Data['points'] ?? 0) +
+                            ($player2Data['points'] ?? 0) +
+                            ($player3Data['points'] ?? 0) +
+                            ($player4Data['points'] ?? 0);
+
+            $apiTotalGames = ($player1Data['gamesPlayed'] ?? 0) +
+                           ($player2Data['gamesPlayed'] ?? 0) +
+                           ($player3Data['gamesPlayed'] ?? 0) +
+                           ($player4Data['gamesPlayed'] ?? 0);
+
+            // Use API totals if they're different from stored totals (indicating sync issues)
+            $finalTotalPoints = $apiTotalPoints > 0 ? $apiTotalPoints : $standing['total_points'];
+            $finalGamesPlayed = $apiTotalGames > 0 ? $apiTotalGames : $standing['games_played'];
+
             return array_merge($standing, [
+                'total_points' => $finalTotalPoints, // Override with API-calculated total
+                'games_played' => $finalGamesPlayed, // Override with API-calculated games
                 'player1_individual_score' => $player1Data['points'] ?? 0,
                 'player1_games_played' => $player1Data['gamesPlayed'] ?? 0,
                 'player2_individual_score' => $player2Data['points'] ?? 0,
@@ -55,7 +72,15 @@ class LeaderboardController extends Controller
                 'round_scores' => $roundScores,
                 'is_in_progress' => $team->roundScores->some(fn ($rs) => $rs->round->status === 'active'),
             ]);
-        })->toArray();
+        })->sortByDesc('total_points')
+            ->sortByDesc('games_played')
+            ->values()
+            ->map(function ($team, $index) {
+                $team['position'] = $index + 1;
+
+                return $team;
+            })
+            ->toArray();
 
         $completedRounds = $tournament->rounds()
             ->where('status', 'completed')
