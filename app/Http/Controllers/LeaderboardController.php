@@ -232,6 +232,9 @@ class LeaderboardController extends Controller
                         ])
                     );
                 }
+
+                // Update team totals after all rounds are synced
+                $team->updateTotalPoints();
             }
         } catch (\Exception $e) {
             // Log the error but don't fail the entire update process

@@ -98,23 +98,39 @@ class Tournament extends Model
     public function calculateStandings(): array
     {
         return $this->teams()
-            ->with(['player1', 'player2', 'player3', 'player4'])
-            ->orderByDesc('total_points')
-            ->orderByDesc('games_played')
+            ->with(['player1', 'player2', 'player3', 'player4', 'roundScores'])
             ->get()
-            ->map(function ($team, $index) {
+            ->map(function ($team) {
+                // Calculate real-time totals from round scores
+                $calculatedTotalPoints = $team->roundScores->sum('total_points');
+                $calculatedGamesPlayed = $team->roundScores->sum('player1_games_played') +
+                                       $team->roundScores->sum('player2_games_played') +
+                                       $team->roundScores->sum('player3_games_played') +
+                                       $team->roundScores->sum('player4_games_played');
+
+                // Use calculated values if they exist, otherwise fall back to stored values
+                $totalPoints = $calculatedTotalPoints > 0 ? $calculatedTotalPoints : $team->total_points;
+                $gamesPlayed = $calculatedGamesPlayed > 0 ? $calculatedGamesPlayed : $team->games_played;
+
                 return [
                     'id' => $team->id,
                     'name' => $team->name,
                     'generated_name' => $team->generated_name,
-                    'total_points' => $team->total_points,
-                    'games_played' => $team->games_played,
-                    'position' => $index + 1,
+                    'total_points' => $totalPoints,
+                    'games_played' => $gamesPlayed,
                     'player1' => $team->player1,
                     'player2' => $team->player2,
                     'player3' => $team->player3,
                     'player4' => $team->player4,
                 ];
+            })
+            ->sortByDesc('total_points')
+            ->sortByDesc('games_played')
+            ->values()
+            ->map(function ($team, $index) {
+                $team['position'] = $index + 1;
+
+                return $team;
             })
             ->toArray();
     }
