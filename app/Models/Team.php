@@ -12,6 +12,8 @@ class Team extends Model
         'tournament_id',
         'player1_id',
         'player2_id',
+        'player3_id',
+        'player4_id',
         'name',
         'generated_name',
         'total_points',
@@ -41,6 +43,16 @@ class Team extends Model
         return $this->belongsTo(Player::class, 'player2_id');
     }
 
+    public function player3(): BelongsTo
+    {
+        return $this->belongsTo(Player::class, 'player3_id');
+    }
+
+    public function player4(): BelongsTo
+    {
+        return $this->belongsTo(Player::class, 'player4_id');
+    }
+
     public function roundScores(): HasMany
     {
         return $this->hasMany(TeamRoundScore::class);
@@ -48,32 +60,37 @@ class Team extends Model
 
     public function players()
     {
-        return collect([$this->player1, $this->player2]);
+        return collect([$this->player1, $this->player2, $this->player3, $this->player4])->filter();
     }
 
     public function hasPlayer(Player $player): bool
     {
-        return $this->player1_id === $player->id || $this->player2_id === $player->id;
+        return $this->player1_id === $player->id ||
+               $this->player2_id === $player->id ||
+               $this->player3_id === $player->id ||
+               $this->player4_id === $player->id;
+    }
+
+    public function getOtherPlayers(Player $player)
+    {
+        return $this->players()->reject(function ($p) use ($player) {
+            return $p && $p->id === $player->id;
+        });
     }
 
     public function getOtherPlayer(Player $player): ?Player
     {
-        if ($this->player1_id === $player->id) {
-            return $this->player2;
-        }
-        
-        if ($this->player2_id === $player->id) {
-            return $this->player1;
-        }
-        
-        return null;
+        // For backward compatibility, return first other player
+        return $this->getOtherPlayers($player)->first();
     }
 
     public function updateTotalPoints(): void
     {
         $totalPoints = $this->roundScores()->sum('total_points');
-        $gamesPlayed = $this->roundScores()->sum('player1_games_played') + 
-                      $this->roundScores()->sum('player2_games_played');
+        $gamesPlayed = $this->roundScores()->sum('player1_games_played') +
+                      $this->roundScores()->sum('player2_games_played') +
+                      $this->roundScores()->sum('player3_games_played') +
+                      $this->roundScores()->sum('player4_games_played');
 
         $this->update([
             'total_points' => $totalPoints,

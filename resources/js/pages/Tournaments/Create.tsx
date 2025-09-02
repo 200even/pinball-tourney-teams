@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -24,6 +25,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function Create() {
     const { data, setData, post, processing, errors } = useForm({
         matchplay_tournament_id: '',
+        team_size: 2,
     });
 
     function submit(e: React.FormEvent) {
@@ -57,6 +59,23 @@ export default function Create() {
                                     placeholder="Enter the tournament ID from Matchplay Events"
                                 />
                                 <InputError message={errors.matchplay_tournament_id} />
+                            </div>
+
+                            <div>
+                                <Label htmlFor="team_size">Team Size</Label>
+                                <Select value={data.team_size.toString()} onValueChange={(value) => setData('team_size', parseInt(value))}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select team size" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="2">2 Players per Team</SelectItem>
+                                        <SelectItem value="4">4 Players per Team</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <InputError message={errors.team_size} />
+                                <p className="text-sm text-muted-foreground mt-1">
+                                    Choose how many players will be on each team for this tournament.
+                                </p>
                             </div>
 
                             <div className="flex gap-4">

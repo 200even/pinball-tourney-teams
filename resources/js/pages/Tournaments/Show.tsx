@@ -27,6 +27,8 @@ interface Team {
     games_played: number;
     player1: Player;
     player2: Player;
+    player3?: Player;
+    player4?: Player;
 }
 
 interface Round {
@@ -39,6 +41,7 @@ interface Tournament {
     id: number;
     name: string;
     status: string;
+    team_size: number;
     matchplay_tournament_id: string;
     start_date?: string;
     end_date?: string;

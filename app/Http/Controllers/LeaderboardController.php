@@ -178,30 +178,32 @@ class LeaderboardController extends Controller
             }
 
             foreach ($tournament->teams as $team) {
-                // Get round-by-round data for both players
-                $player1RoundScores = $matchplayService->getPlayerRoundScores(
-                    $tournament->matchplay_tournament_id,
-                    (int) $team->player1->matchplay_player_id
-                );
+                // Get round-by-round data for all players on the team
+                $playerRoundScores = [];
+                $playerScoresByRound = [];
 
-                $player2RoundScores = $matchplayService->getPlayerRoundScores(
-                    $tournament->matchplay_tournament_id,
-                    (int) $team->player2->matchplay_player_id
-                );
-
-                // Index round scores by round number for easy lookup
-                $player1ScoresByRound = collect($player1RoundScores)->keyBy('roundNumber');
-                $player2ScoresByRound = collect($player2RoundScores)->keyBy('roundNumber');
+                foreach ($team->players() as $index => $player) {
+                    if ($player) {
+                        $playerRoundScores[$index] = $matchplayService->getPlayerRoundScores(
+                            $tournament->matchplay_tournament_id,
+                            (int) $player->matchplay_player_id
+                        );
+                        $playerScoresByRound[$index] = collect($playerRoundScores[$index])->keyBy('roundNumber');
+                    }
+                }
 
                 // Update team round scores for each completed round
                 foreach ($completedRounds as $round) {
-                    $player1RoundData = $player1ScoresByRound->get($round->round_number, []);
-                    $player2RoundData = $player2ScoresByRound->get($round->round_number, []);
+                    $roundData = [];
+                    $gamesData = [];
 
-                    $player1Points = $player1RoundData['points'] ?? 0;
-                    $player2Points = $player2RoundData['points'] ?? 0;
-                    $player1Games = $player1RoundData['gamesPlayed'] ?? 0;
-                    $player2Games = $player2RoundData['gamesPlayed'] ?? 0;
+                    // Collect data for each player
+                    for ($i = 0; $i < 4; $i++) {
+                        $playerRoundData = $playerScoresByRound[$i]?->get($round->round_number, []) ?? [];
+                        $roundData['player'.($i + 1).'_points'] = $playerRoundData['points'] ?? 0;
+                        $roundData['player'.($i + 1).'_games_played'] = $playerRoundData['gamesPlayed'] ?? 0;
+                        $gamesData['player'.($i + 1).'_games'] = $playerRoundData['games'] ?? [];
+                    }
 
                     // Create or update the team round score record
                     \App\Models\TeamRoundScore::updateOrCreate(
@@ -209,16 +211,9 @@ class LeaderboardController extends Controller
                             'team_id' => $team->id,
                             'round_id' => $round->id,
                         ],
-                        [
-                            'player1_points' => $player1Points,
-                            'player2_points' => $player2Points,
-                            'player1_games_played' => $player1Games,
-                            'player2_games_played' => $player2Games,
-                            'games_data' => [
-                                'player1_games' => $player1RoundData['games'] ?? [],
-                                'player2_games' => $player2RoundData['games'] ?? [],
-                            ],
-                        ]
+                        array_merge($roundData, [
+                            'games_data' => $gamesData,
+                        ])
                     );
                 }
             }

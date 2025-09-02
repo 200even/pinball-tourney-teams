@@ -25,11 +25,14 @@ interface Team {
     games_played: number;
     player1: Player;
     player2: Player;
+    player3?: Player;
+    player4?: Player;
 }
 
 interface Tournament {
     id: number;
     name: string;
+    team_size: number;
     teams: Team[];
 }
 
@@ -46,6 +49,8 @@ export default function TeamManagement({ tournament, availablePlayers = [] }: Pr
     const { data: createData, setData: setCreateData, post: createPost, processing: creating, errors: createErrors, reset: resetCreate } = useForm({
         player1_id: '',
         player2_id: '',
+        player3_id: '',
+        player4_id: '',
         custom_name: '',
     });
 
@@ -114,7 +119,7 @@ export default function TeamManagement({ tournament, availablePlayers = [] }: Pr
                             <DialogHeader>
                                 <DialogTitle>Create New Team</DialogTitle>
                                 <DialogDescription>
-                                    Select two players to form a team. A fun team name will be generated automatically.
+                                    Select {tournament.team_size} players to form a team. A fun team name will be generated automatically.
                                 </DialogDescription>
                             </DialogHeader>
 
@@ -160,6 +165,61 @@ export default function TeamManagement({ tournament, availablePlayers = [] }: Pr
                                     </Select>
                                     <InputError message={createErrors.player2_id} />
                                 </div>
+
+                                {tournament.team_size === 4 && (
+                                    <>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="player3_id">Player 3 *</Label>
+                                            <Select 
+                                                value={createData.player3_id} 
+                                                onValueChange={(value) => setCreateData('player3_id', value)}
+                                            >
+                                                <SelectTrigger className={createErrors.player3_id ? 'border-red-500' : ''}>
+                                                    <SelectValue placeholder="Select third player" />
+                                                </SelectTrigger>
+                                                <SelectContent className="max-h-60 overflow-y-auto" position="popper" side="bottom" sideOffset={4}>
+                                                    {availablePlayers
+                                                        .filter(player => 
+                                                            player.id.toString() !== createData.player1_id &&
+                                                            player.id.toString() !== createData.player2_id
+                                                        )
+                                                        .map((player) => (
+                                                        <SelectItem key={player.id} value={player.id.toString()}>
+                                                            {player.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <InputError message={createErrors.player3_id} />
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="player4_id">Player 4 *</Label>
+                                            <Select 
+                                                value={createData.player4_id} 
+                                                onValueChange={(value) => setCreateData('player4_id', value)}
+                                            >
+                                                <SelectTrigger className={createErrors.player4_id ? 'border-red-500' : ''}>
+                                                    <SelectValue placeholder="Select fourth player" />
+                                                </SelectTrigger>
+                                                <SelectContent className="max-h-60 overflow-y-auto" position="popper" side="bottom" sideOffset={4}>
+                                                    {availablePlayers
+                                                        .filter(player => 
+                                                            player.id.toString() !== createData.player1_id &&
+                                                            player.id.toString() !== createData.player2_id &&
+                                                            player.id.toString() !== createData.player3_id
+                                                        )
+                                                        .map((player) => (
+                                                        <SelectItem key={player.id} value={player.id.toString()}>
+                                                            {player.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <InputError message={createErrors.player4_id} />
+                                        </div>
+                                    </>
+                                )}
 
                                 <div className="space-y-2">
                                     <Label htmlFor="custom_name">
@@ -248,6 +308,18 @@ export default function TeamManagement({ tournament, availablePlayers = [] }: Pr
                                                 <span>{team.player1.name}</span>
                                                 <span>&</span>
                                                 <span>{team.player2.name}</span>
+                                                {team.player3 && (
+                                                    <>
+                                                        <span>&</span>
+                                                        <span>{team.player3.name}</span>
+                                                    </>
+                                                )}
+                                                {team.player4 && (
+                                                    <>
+                                                        <span>&</span>
+                                                        <span>{team.player4.name}</span>
+                                                    </>
+                                                )}
                                             </div>
                                         </>
                                     )}

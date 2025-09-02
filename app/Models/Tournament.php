@@ -14,6 +14,7 @@ class Tournament extends Model
         'matchplay_tournament_id',
         'name',
         'status',
+        'team_size',
         'description',
         'start_date',
         'end_date',

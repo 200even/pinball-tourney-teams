@@ -12,9 +12,13 @@ class TeamRoundScore extends Model
         'round_id',
         'player1_points',
         'player2_points',
+        'player3_points',
+        'player4_points',
         'total_points',
         'player1_games_played',
         'player2_games_played',
+        'player3_games_played',
+        'player4_games_played',
         'games_data',
     ];
 
@@ -23,6 +27,8 @@ class TeamRoundScore extends Model
         return [
             'player1_points' => 'decimal:2',
             'player2_points' => 'decimal:2',
+            'player3_points' => 'decimal:2',
+            'player4_points' => 'decimal:2',
             'total_points' => 'decimal:2',
             'games_data' => 'array',
         ];
@@ -33,7 +39,10 @@ class TeamRoundScore extends Model
         parent::boot();
 
         static::saving(function ($teamRoundScore) {
-            $teamRoundScore->total_points = $teamRoundScore->player1_points + $teamRoundScore->player2_points;
+            $teamRoundScore->total_points = $teamRoundScore->player1_points +
+                                          $teamRoundScore->player2_points +
+                                          $teamRoundScore->player3_points +
+                                          $teamRoundScore->player4_points;
         });
     }
 

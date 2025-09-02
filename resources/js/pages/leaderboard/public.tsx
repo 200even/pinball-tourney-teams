@@ -30,10 +30,16 @@ interface Team {
     position: number;
     player1: Player;
     player2: Player;
+    player3?: Player;
+    player4?: Player;
     player1_individual_score: number;
     player1_games_played: number;
     player2_individual_score: number;
     player2_games_played: number;
+    player3_individual_score?: number;
+    player3_games_played?: number;
+    player4_individual_score?: number;
+    player4_games_played?: number;
     round_scores: RoundScore[];
     is_in_progress: boolean;
 }
@@ -367,7 +373,7 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
                                                 </div>
                                                 
                                                 <div className="space-y-1">
-                                                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                                    <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                                                         <span className="flex items-center gap-1">
                                                             {team.player1.name}
                                                             <span className="font-mono text-xs">({team.player1_individual_score}pts)</span>
@@ -377,12 +383,30 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
                                                             {team.player2.name}
                                                             <span className="font-mono text-xs">({team.player2_individual_score}pts)</span>
                                                         </span>
+                                                        {team.player3 && (
+                                                            <>
+                                                                <Icon name="plus" className="h-3 w-3" />
+                                                                <span className="flex items-center gap-1">
+                                                                    {team.player3.name}
+                                                                    <span className="font-mono text-xs">({team.player3_individual_score || 0}pts)</span>
+                                                                </span>
+                                                            </>
+                                                        )}
+                                                        {team.player4 && (
+                                                            <>
+                                                                <Icon name="plus" className="h-3 w-3" />
+                                                                <span className="flex items-center gap-1">
+                                                                    {team.player4.name}
+                                                                    <span className="font-mono text-xs">({team.player4_individual_score || 0}pts)</span>
+                                                                </span>
+                                                            </>
+                                                        )}
                                                         {team.round_scores.length > 0 && (
                                                             <Icon name="chevron-down" className={`h-4 w-4 transition-transform ${expandedTeam === team.id ? 'rotate-180' : ''}`} />
                                                         )}
                                                     </div>
                                                     <div className="text-xs text-muted-foreground">
-                                                        {team.player1_games_played + team.player2_games_played} total games played
+                                                        {(team.player1_games_played || 0) + (team.player2_games_played || 0) + (team.player3_games_played || 0) + (team.player4_games_played || 0)} total games played
                                                     </div>
                                                 </div>
                                             </div>
