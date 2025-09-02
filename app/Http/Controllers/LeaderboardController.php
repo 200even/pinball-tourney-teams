@@ -15,16 +15,18 @@ class LeaderboardController extends Controller
             ->firstOrFail();
 
         $standings = $tournament->calculateStandings();
-        
+
         // Enhance standings with individual player scores and round data
         $enhancedStandings = collect($standings)->map(function ($standing) use ($tournament) {
             $team = $tournament->teams->find($standing['id']);
-            if (!$team) return $standing;
-            
+            if (! $team) {
+                return $standing;
+            }
+
             // Get individual player data from Matchplay API if available
             $player1Data = $this->getPlayerScoreData($tournament, $team->player1);
             $player2Data = $this->getPlayerScoreData($tournament, $team->player2);
-            
+
             // Get round-by-round scores
             $roundScores = $team->roundScores->map(function ($roundScore) {
                 return [
@@ -36,14 +38,14 @@ class LeaderboardController extends Controller
                     'round_status' => $roundScore->round->status,
                 ];
             })->sortBy('round_number')->values();
-            
+
             return array_merge($standing, [
                 'player1_individual_score' => $player1Data['points'] ?? 0,
                 'player1_games_played' => $player1Data['gamesPlayed'] ?? 0,
                 'player2_individual_score' => $player2Data['points'] ?? 0,
                 'player2_games_played' => $player2Data['gamesPlayed'] ?? 0,
                 'round_scores' => $roundScores,
-                'is_in_progress' => $team->roundScores->some(fn($rs) => $rs->round->status === 'active'),
+                'is_in_progress' => $team->roundScores->some(fn ($rs) => $rs->round->status === 'active'),
             ]);
         })->toArray();
 
@@ -51,7 +53,7 @@ class LeaderboardController extends Controller
             ->where('status', 'completed')
             ->orderBy('round_number')
             ->get();
-            
+
         $allRounds = $tournament->rounds()
             ->orderBy('round_number')
             ->get();
@@ -68,23 +70,25 @@ class LeaderboardController extends Controller
     public function refresh(string $qrCodeUuid)
     {
         $tournament = Tournament::where('qr_code_uuid', $qrCodeUuid)->firstOrFail();
-        
+
         // Update team scores from Matchplay API
         $this->updateTeamScores($tournament);
-        
+
         // If this is an AJAX request, return JSON data
         if (request()->wantsJson()) {
             $tournament->load(['teams.player1', 'teams.player2', 'teams.roundScores.round', 'rounds']);
             $standings = $tournament->calculateStandings();
-            
+
             // Enhance standings with individual player scores and round data
             $enhancedStandings = collect($standings)->map(function ($standing) use ($tournament) {
                 $team = $tournament->teams->find($standing['id']);
-                if (!$team) return $standing;
-                
+                if (! $team) {
+                    return $standing;
+                }
+
                 $player1Data = $this->getPlayerScoreData($tournament, $team->player1);
                 $player2Data = $this->getPlayerScoreData($tournament, $team->player2);
-                
+
                 $roundScores = $team->roundScores->map(function ($roundScore) {
                     return [
                         'round_number' => $roundScore->round->round_number,
@@ -95,14 +99,14 @@ class LeaderboardController extends Controller
                         'round_status' => $roundScore->round->status,
                     ];
                 })->sortBy('round_number')->values();
-                
+
                 return array_merge($standing, [
                     'player1_individual_score' => $player1Data['points'] ?? 0,
                     'player1_games_played' => $player1Data['gamesPlayed'] ?? 0,
                     'player2_individual_score' => $player2Data['points'] ?? 0,
                     'player2_games_played' => $player2Data['gamesPlayed'] ?? 0,
                     'round_scores' => $roundScores,
-                    'is_in_progress' => $team->roundScores->some(fn($rs) => $rs->round->status === 'active'),
+                    'is_in_progress' => $team->roundScores->some(fn ($rs) => $rs->round->status === 'active'),
                 ]);
             })->toArray();
 
@@ -120,9 +124,9 @@ class LeaderboardController extends Controller
         try {
             $matchplayService = new \App\Services\MatchplayApiService($tournament->user);
             $standings = $matchplayService->getTournamentStandings($tournament->matchplay_tournament_id);
-            
+
             $playerStanding = collect($standings)->firstWhere('playerId', $player->matchplay_player_id);
-            
+
             return [
                 'points' => $playerStanding['points'] ?? 0,
                 'gamesPlayed' => $playerStanding['gamesPlayed'] ?? 0,
@@ -138,6 +142,9 @@ class LeaderboardController extends Controller
         $matchplayService = new \App\Services\MatchplayApiService($tournament->user);
         $standings = $matchplayService->getTournamentStandings($tournament->matchplay_tournament_id);
 
+        // Update round-by-round scores for all teams
+        $this->syncTeamRoundScores($tournament, $matchplayService);
+
         foreach ($tournament->teams as $team) {
             $player1Standing = collect($standings)->firstWhere('playerId', $team->player1->matchplay_player_id);
             $player2Standing = collect($standings)->firstWhere('playerId', $team->player2->matchplay_player_id);
@@ -150,7 +157,74 @@ class LeaderboardController extends Controller
                     'total_points' => $totalPoints,
                     'games_played' => $gamesPlayed,
                 ]);
+
+                // Also update total points from round scores for accuracy
+                $team->updateTotalPoints();
             }
+        }
+    }
+
+    /**
+     * Sync round-by-round scores for all teams from Matchplay API
+     */
+    private function syncTeamRoundScores(Tournament $tournament, \App\Services\MatchplayApiService $matchplayService): void
+    {
+        try {
+            // Get all completed rounds for this tournament
+            $completedRounds = $tournament->rounds()->where('status', 'completed')->get();
+
+            if ($completedRounds->isEmpty()) {
+                return;
+            }
+
+            foreach ($tournament->teams as $team) {
+                // Get round-by-round data for both players
+                $player1RoundScores = $matchplayService->getPlayerRoundScores(
+                    $tournament->matchplay_tournament_id,
+                    (int) $team->player1->matchplay_player_id
+                );
+
+                $player2RoundScores = $matchplayService->getPlayerRoundScores(
+                    $tournament->matchplay_tournament_id,
+                    (int) $team->player2->matchplay_player_id
+                );
+
+                // Index round scores by round number for easy lookup
+                $player1ScoresByRound = collect($player1RoundScores)->keyBy('roundNumber');
+                $player2ScoresByRound = collect($player2RoundScores)->keyBy('roundNumber');
+
+                // Update team round scores for each completed round
+                foreach ($completedRounds as $round) {
+                    $player1RoundData = $player1ScoresByRound->get($round->round_number, []);
+                    $player2RoundData = $player2ScoresByRound->get($round->round_number, []);
+
+                    $player1Points = $player1RoundData['points'] ?? 0;
+                    $player2Points = $player2RoundData['points'] ?? 0;
+                    $player1Games = $player1RoundData['gamesPlayed'] ?? 0;
+                    $player2Games = $player2RoundData['gamesPlayed'] ?? 0;
+
+                    // Create or update the team round score record
+                    \App\Models\TeamRoundScore::updateOrCreate(
+                        [
+                            'team_id' => $team->id,
+                            'round_id' => $round->id,
+                        ],
+                        [
+                            'player1_points' => $player1Points,
+                            'player2_points' => $player2Points,
+                            'player1_games_played' => $player1Games,
+                            'player2_games_played' => $player2Games,
+                            'games_data' => [
+                                'player1_games' => $player1RoundData['games'] ?? [],
+                                'player2_games' => $player2RoundData['games'] ?? [],
+                            ],
+                        ]
+                    );
+                }
+            }
+        } catch (\Exception $e) {
+            // Log the error but don't fail the entire update process
+            \Illuminate\Support\Facades\Log::warning('Failed to sync team round scores: '.$e->getMessage());
         }
     }
 }

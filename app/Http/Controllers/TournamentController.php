@@ -9,7 +9,6 @@ use App\Models\Tournament;
 use App\Services\MatchplayApiService;
 use App\Services\PlayerNameMatchingService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -43,7 +42,7 @@ class TournamentController extends Controller
 
     public function create()
     {
-        if (!auth()->user()->hasMatchplayToken()) {
+        if (! auth()->user()->hasMatchplayToken()) {
             return redirect()->route('profile.edit')
                 ->with('error', 'Please add your Matchplay API token first.');
         }
@@ -64,14 +63,14 @@ class TournamentController extends Controller
                 'user_name' => auth()->user()->name ?? 'N/A',
                 'matchplay_tournament_id' => $request->matchplay_tournament_id,
                 'request_ip' => $request->ip(),
-                'user_agent' => $request->userAgent()
+                'user_agent' => $request->userAgent(),
             ]);
 
             $matchplayService = new MatchplayApiService(auth()->user());
-            
+
             // Verify tournament exists and get data
             $tournamentData = $matchplayService->getTournament($request->matchplay_tournament_id);
-            if (!$tournamentData) {
+            if (! $tournamentData) {
                 throw ValidationException::withMessages([
                     'matchplay_tournament_id' => 'Tournament not found in Matchplay API.',
                 ]);
@@ -86,7 +85,7 @@ class TournamentController extends Controller
             \Log::info('About to create tournament', [
                 'user_id_for_tournament' => $currentUserId,
                 'authenticated_user_email' => auth()->user()->email,
-                'tournament_name' => $data['name'] ?? 'Unnamed Tournament'
+                'tournament_name' => $data['name'] ?? 'Unnamed Tournament',
             ]);
 
             $tournament = Tournament::create([
@@ -102,7 +101,7 @@ class TournamentController extends Controller
 
             \Log::info('Tournament created successfully', [
                 'tournament_id' => $tournament->id,
-                'tournament_name' => $tournament->name
+                'tournament_name' => $tournament->name,
             ]);
 
             // Import players and create rounds
@@ -113,13 +112,13 @@ class TournamentController extends Controller
                 \Log::error('Tournament data import failed', [
                     'tournament_id' => $tournament->id,
                     'error' => $importException->getMessage(),
-                    'trace' => $importException->getTraceAsString()
+                    'trace' => $importException->getTraceAsString(),
                 ]);
                 // Don't fail the entire creation if import fails
             }
 
             \Log::info('Redirecting to tournament show page', [
-                'tournament_id' => $tournament->id
+                'tournament_id' => $tournament->id,
             ]);
 
             return redirect()->route('tournaments.show', $tournament)
@@ -130,9 +129,10 @@ class TournamentController extends Controller
                 'user_id' => auth()->id(),
                 'matchplay_tournament_id' => $request->matchplay_tournament_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            return back()->withErrors(['error' => 'Failed to create tournament: ' . $e->getMessage()]);
+
+            return back()->withErrors(['error' => 'Failed to create tournament: '.$e->getMessage()]);
         }
     }
 
@@ -142,13 +142,13 @@ class TournamentController extends Controller
 
         $tournament->load([
             'teams.player1',
-            'teams.player2', 
+            'teams.player2',
             'teams.roundScores.round',
-            'rounds'
+            'rounds',
         ]);
 
         // Get players from this specific tournament using stored player IDs
-        if (!empty($tournament->tournament_player_ids)) {
+        if (! empty($tournament->tournament_player_ids)) {
             $availablePlayers = Player::whereIn('matchplay_player_id', $tournament->tournament_player_ids)
                 ->orderBy('name')
                 ->get();
@@ -157,8 +157,8 @@ class TournamentController extends Controller
             try {
                 $this->importTournamentData($tournament);
                 $tournament->refresh();
-                
-                if (!empty($tournament->tournament_player_ids)) {
+
+                if (! empty($tournament->tournament_player_ids)) {
                     $availablePlayers = Player::whereIn('matchplay_player_id', $tournament->tournament_player_ids)
                         ->orderBy('name')
                         ->get();
@@ -190,7 +190,7 @@ class TournamentController extends Controller
 
             return back()->with('success', 'Tournament data synced successfully!');
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'Failed to sync tournament: ' . $e->getMessage()]);
+            return back()->withErrors(['error' => 'Failed to sync tournament: '.$e->getMessage()]);
         }
     }
 
@@ -199,11 +199,11 @@ class TournamentController extends Controller
         $this->authorize('update', $tournament);
 
         $tournament->update([
-            'auto_sync' => !$tournament->auto_sync,
+            'auto_sync' => ! $tournament->auto_sync,
         ]);
 
         $status = $tournament->auto_sync ? 'enabled' : 'disabled';
-        
+
         return back()->with('success', "Auto-sync {$status} for this tournament.");
     }
 
@@ -227,7 +227,7 @@ class TournamentController extends Controller
 
             return back()->with('success', 'Player names updated successfully!');
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'Failed to update player names: ' . $e->getMessage()]);
+            return back()->withErrors(['error' => 'Failed to update player names: '.$e->getMessage()]);
         }
     }
 
@@ -242,27 +242,27 @@ class TournamentController extends Controller
             'ifpa_tournament_id' => 'required|integer|min:1',
         ]);
 
-        if (!$tournament->user->matchplay_api_token) {
+        if (! $tournament->user->matchplay_api_token) {
             return back()->withErrors(['error' => 'Matchplay API token is required.']);
         }
 
         try {
             $matchplayService = new MatchplayApiService($tournament->user);
-            $nameMatchingService = new PlayerNameMatchingService();
+            $nameMatchingService = new PlayerNameMatchingService;
 
             // Get current tournament players
             $playersData = $matchplayService->getTournamentPlayers($tournament->matchplay_tournament_id);
-            
+
             // Use the user's IFPA API key
             $ifpaApiKey = $tournament->user->ifpa_api_key;
-            
-            if (!$ifpaApiKey) {
+
+            if (! $ifpaApiKey) {
                 return back()->withErrors(['error' => 'IFPA API key is required to match names from IFPA tournaments.']);
             }
 
             // Match names using the IFPA tournament
             $matchedPlayers = $nameMatchingService->matchPlayersFromIfpaTournament(
-                $playersData, 
+                $playersData,
                 $request->ifpa_tournament_id,
                 $ifpaApiKey
             );
@@ -284,7 +284,7 @@ class TournamentController extends Controller
             }
 
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'Failed to match names from IFPA tournament: ' . $e->getMessage()]);
+            return back()->withErrors(['error' => 'Failed to match names from IFPA tournament: '.$e->getMessage()]);
         }
     }
 
@@ -309,17 +309,17 @@ class TournamentController extends Controller
 
         $user = auth()->user();
 
-        if (!$user->hasMatchplayToken()) {
+        if (! $user->hasMatchplayToken()) {
             return back()->withErrors(['error' => 'Matchplay API token is required. Please add it in your profile settings.']);
         }
 
-        if (!$user->hasIfpaApiKey()) {
+        if (! $user->hasIfpaApiKey()) {
             return back()->withErrors(['error' => 'IFPA API key is required. Please add it in your profile settings.']);
         }
 
         try {
             $matchplayService = new MatchplayApiService($user);
-            $nameMatchingService = new PlayerNameMatchingService();
+            $nameMatchingService = new PlayerNameMatchingService;
 
             $totalUpdatedCount = 0;
             $processedPairs = [];
@@ -332,15 +332,16 @@ class TournamentController extends Controller
                 try {
                     // Get Matchplay tournament players
                     $playersData = $matchplayService->getTournamentPlayers($matchplayId);
-                    
+
                     if (empty($playersData)) {
                         $processedPairs[] = "Matchplay {$matchplayId}: No players found";
+
                         continue;
                     }
 
                     // Use conservative single-tournament matching (no multi-tournament for 1:1 pairs)
                     $matchedPlayers = $nameMatchingService->matchPlayersFromIfpaTournament(
-                        $playersData, 
+                        $playersData,
                         $ifpaId,
                         $user->ifpa_api_key
                     );
@@ -350,24 +351,24 @@ class TournamentController extends Controller
                     foreach ($matchedPlayers as $playerData) {
                         if (isset($playerData['name_source']) && $playerData['name_source'] === 'ifpa_tournament') {
                             $existingPlayer = Player::where('matchplay_player_id', $playerData['playerId'])->first();
-                            if ($existingPlayer && 
-                                !str_starts_with($existingPlayer->name, 'Player ') && 
+                            if ($existingPlayer &&
+                                ! str_starts_with($existingPlayer->name, 'Player ') &&
                                 $existingPlayer->name !== $playerData['name']) {
                                 $conflicts[] = [
                                     'player_id' => $playerData['playerId'],
                                     'current_name' => $existingPlayer->name,
-                                    'new_name' => $playerData['name']
+                                    'new_name' => $playerData['name'],
                                 ];
                             }
                         }
                     }
-                    
+
                     // If there are conflicts, abort the entire operation
-                    if (!empty($conflicts)) {
-                        $conflictDetails = collect($conflicts)->map(function($conflict) {
+                    if (! empty($conflicts)) {
+                        $conflictDetails = collect($conflicts)->map(function ($conflict) {
                             return "Player {$conflict['player_id']}: '{$conflict['current_name']}' → '{$conflict['new_name']}'";
                         })->implode('; ');
-                        
+
                         throw new \Exception("Name matching aborted to prevent overwriting existing real names. Conflicts: {$conflictDetails}");
                     }
 
@@ -411,37 +412,37 @@ class TournamentController extends Controller
 
             if ($totalUpdatedCount > 0) {
                 $summary = implode('; ', $processedPairs);
+
                 return back()->with('success', "Successfully matched {$totalUpdatedCount} total player names using conservative 1:1 matching. Details: {$summary}");
             } else {
                 $summary = implode('; ', $processedPairs);
+
                 return back()->with('info', "No player names could be matched. This may be due to tied positions being excluded for accuracy. Details: {$summary}");
             }
 
-
-
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'Failed to match names: ' . $e->getMessage()]);
+            return back()->withErrors(['error' => 'Failed to match names: '.$e->getMessage()]);
         }
     }
 
     private function importTournamentData(Tournament $tournament): void
     {
         $matchplayService = new MatchplayApiService($tournament->user);
-        $nameMatchingService = new PlayerNameMatchingService();
+        $nameMatchingService = new PlayerNameMatchingService;
 
         // Import players from standings
         $playersData = $matchplayService->getTournamentPlayers($tournament->matchplay_tournament_id);
-        
+
         // Try to match player names from existing database records first
         $playersData = $nameMatchingService->matchPlayersFromDatabase($playersData);
-        
+
         // Store tournament player IDs for scoping
         $tournamentPlayerIds = collect($playersData)->pluck('playerId')->filter()->toArray();
         $tournament->update(['tournament_player_ids' => $tournamentPlayerIds]);
-        
+
         foreach ($playersData as $playerData) {
             $playerName = $playerData['name']; // May have been improved by name matching
-            
+
             Player::updateOrCreate(
                 ['matchplay_player_id' => $playerData['playerId']],
                 [
@@ -460,7 +461,7 @@ class TournamentController extends Controller
             Round::updateOrCreate(
                 [
                     'tournament_id' => $tournament->id,
-                    'matchplay_round_id' => $roundData['roundId']
+                    'matchplay_round_id' => $roundData['roundId'],
                 ],
                 [
                     'round_number' => $roundData['index'] + 1,
@@ -496,10 +497,10 @@ class TournamentController extends Controller
                 try {
                     // Get player profile from Matchplay API
                     $profile = $matchplayService->getPlayer($playerId);
-                    
+
                     if ($profile) {
                         $playerName = $profile['name'] ?? "Player {$playerId}";
-                        
+
                         Player::updateOrCreate(
                             ['matchplay_player_id' => $playerId],
                             [
@@ -510,21 +511,21 @@ class TournamentController extends Controller
                                 ],
                             ]
                         );
-                        
+
                         $imported++;
                     }
                 } catch (\Exception $e) {
                     Log::warning('Failed to import additional player', [
                         'player_id' => $playerId,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
 
             return back()->with('success', "Successfully imported {$imported} additional players.");
-            
+
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'Failed to import additional players: ' . $e->getMessage()]);
+            return back()->withErrors(['error' => 'Failed to import additional players: '.$e->getMessage()]);
         }
     }
 
@@ -532,6 +533,9 @@ class TournamentController extends Controller
     {
         $matchplayService = new MatchplayApiService($tournament->user);
         $standings = $matchplayService->getTournamentStandings($tournament->matchplay_tournament_id);
+
+        // Update round-by-round scores for all teams
+        $this->syncTeamRoundScores($tournament, $matchplayService);
 
         foreach ($tournament->teams as $team) {
             $player1Standing = collect($standings)->firstWhere('playerId', $team->player1->matchplay_player_id);
@@ -545,7 +549,74 @@ class TournamentController extends Controller
                     'total_points' => $totalPoints,
                     'games_played' => $gamesPlayed,
                 ]);
+
+                // Also update total points from round scores for accuracy
+                $team->updateTotalPoints();
             }
+        }
+    }
+
+    /**
+     * Sync round-by-round scores for all teams from Matchplay API
+     */
+    private function syncTeamRoundScores(Tournament $tournament, MatchplayApiService $matchplayService): void
+    {
+        try {
+            // Get all completed rounds for this tournament
+            $completedRounds = $tournament->rounds()->where('status', 'completed')->get();
+
+            if ($completedRounds->isEmpty()) {
+                return;
+            }
+
+            foreach ($tournament->teams as $team) {
+                // Get round-by-round data for both players
+                $player1RoundScores = $matchplayService->getPlayerRoundScores(
+                    $tournament->matchplay_tournament_id,
+                    (int) $team->player1->matchplay_player_id
+                );
+
+                $player2RoundScores = $matchplayService->getPlayerRoundScores(
+                    $tournament->matchplay_tournament_id,
+                    (int) $team->player2->matchplay_player_id
+                );
+
+                // Index round scores by round number for easy lookup
+                $player1ScoresByRound = collect($player1RoundScores)->keyBy('roundNumber');
+                $player2ScoresByRound = collect($player2RoundScores)->keyBy('roundNumber');
+
+                // Update team round scores for each completed round
+                foreach ($completedRounds as $round) {
+                    $player1RoundData = $player1ScoresByRound->get($round->round_number, []);
+                    $player2RoundData = $player2ScoresByRound->get($round->round_number, []);
+
+                    $player1Points = $player1RoundData['points'] ?? 0;
+                    $player2Points = $player2RoundData['points'] ?? 0;
+                    $player1Games = $player1RoundData['gamesPlayed'] ?? 0;
+                    $player2Games = $player2RoundData['gamesPlayed'] ?? 0;
+
+                    // Create or update the team round score record
+                    \App\Models\TeamRoundScore::updateOrCreate(
+                        [
+                            'team_id' => $team->id,
+                            'round_id' => $round->id,
+                        ],
+                        [
+                            'player1_points' => $player1Points,
+                            'player2_points' => $player2Points,
+                            'player1_games_played' => $player1Games,
+                            'player2_games_played' => $player2Games,
+                            'games_data' => [
+                                'player1_games' => $player1RoundData['games'] ?? [],
+                                'player2_games' => $player2RoundData['games'] ?? [],
+                            ],
+                        ]
+                    );
+                }
+            }
+        } catch (\Exception $e) {
+            // Log the error but don't fail the entire update process
+            \Illuminate\Support\Facades\Log::warning('Failed to sync team round scores: '.$e->getMessage());
         }
     }
 }

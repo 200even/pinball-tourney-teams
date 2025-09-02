@@ -68,6 +68,7 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
     const [viewMode, setViewMode] = useState<'summary' | 'rounds'>('summary');
     const [expandedTeam, setExpandedTeam] = useState<number | null>(null);
+    const [selectedRound, setSelectedRound] = useState<number | null>(null);
 
     // Auto-refresh every 30 seconds
     useEffect(() => {
@@ -143,9 +144,33 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
         
         return baseClass;
     };
+
+    // Calculate standings up to a specific round
+    const getStandingsUpToRound = (roundNumber: number) => {
+        return standings.map(team => {
+            const roundScoresUpToRound = team.round_scores.filter(rs => rs.round_number <= roundNumber);
+            const totalPointsUpToRound = roundScoresUpToRound.reduce((sum, rs) => sum + rs.total_points, 0);
+            const player1PointsUpToRound = roundScoresUpToRound.reduce((sum, rs) => sum + rs.player1_points, 0);
+            const player2PointsUpToRound = roundScoresUpToRound.reduce((sum, rs) => sum + rs.player2_points, 0);
+            
+            return {
+                ...team,
+                total_points: totalPointsUpToRound,
+                player1_individual_score: player1PointsUpToRound,
+                player2_individual_score: player2PointsUpToRound,
+                round_scores: roundScoresUpToRound,
+            };
+        }).sort((a, b) => b.total_points - a.total_points).map((team, index) => ({
+            ...team,
+            position: index + 1,
+        }));
+    };
+
+    // Get the standings to display (either full or up to selected round)
+    const displayStandings = selectedRound !== null ? getStandingsUpToRound(selectedRound) : standings;
     
     // Calculate ties for display
-    const positions = standings.map(team => team.position);
+    const positions = displayStandings.map(team => team.position);
     const ties = positions;
 
     return (
@@ -206,24 +231,53 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
             </div>
 
             <div className="container mx-auto px-4 py-6 space-y-6">
+                {/* Historical View Banner */}
+                {selectedRound !== null && (
+                    <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                        <div className="flex items-center gap-3">
+                            <Icon name="history" className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            <div>
+                                <h3 className="font-semibold text-blue-900 dark:text-blue-100">
+                                    Historical View - Round {selectedRound}
+                                </h3>
+                                <p className="text-sm text-blue-700 dark:text-blue-300">
+                                    Showing standings as they were after Round {selectedRound}: {completedRounds.find(r => r.round_number === selectedRound)?.name}
+                                </p>
+                            </div>
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => setSelectedRound(null)}
+                                className="ml-auto border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900/50"
+                            >
+                                Back to Current
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Stats Bar */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <Card>
                         <CardContent className="pt-6">
-                            <div className="text-2xl font-bold">{standings.length}</div>
+                            <div className="text-2xl font-bold">{displayStandings.length}</div>
                             <p className="text-xs text-muted-foreground">Teams</p>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardContent className="pt-6">
-                            <div className="text-2xl font-bold">{completedRounds.length}</div>
-                            <p className="text-xs text-muted-foreground">Rounds</p>
+                            <div className="text-2xl font-bold">
+                                {selectedRound !== null ? selectedRound : completedRounds.length}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                {selectedRound !== null ? 'Round' : 'Rounds'}
+                            </p>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardContent className="pt-6">
                             <div className="text-2xl font-bold">
-                                {standings[0]?.total_points || 0}
+                                {displayStandings[0]?.total_points || 0}
                             </div>
                             <p className="text-xs text-muted-foreground">Top Score</p>
                         </CardContent>
@@ -255,29 +309,60 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
                                 <Button
                                     variant={viewMode === 'summary' ? 'default' : 'outline'}
                                     size="sm"
-                                    onClick={() => setViewMode('summary')}
+                                    onClick={() => {
+                                        setViewMode('summary');
+                                        setSelectedRound(null);
+                                        setExpandedTeam(null);
+                                    }}
                                 >
                                     Summary
                                 </Button>
                                 <Button
                                     variant={viewMode === 'rounds' ? 'default' : 'outline'}
                                     size="sm"
-                                    onClick={() => setViewMode('rounds')}
+                                    onClick={() => {
+                                        setViewMode('rounds');
+                                        setSelectedRound(null);
+                                        setExpandedTeam(null);
+                                    }}
                                     disabled={allRounds.length === 0}
                                 >
                                     By Round
                                 </Button>
+                                {completedRounds.length > 0 && (
+                                    <div className="flex items-center gap-2 ml-2 border-l border-border pl-2">
+                                        <span className="text-sm text-muted-foreground">After Round:</span>
+                                        <select 
+                                            className="px-2 py-1 text-sm border border-border rounded bg-background text-foreground"
+                                            value={selectedRound || ''}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                setSelectedRound(value ? parseInt(value) : null);
+                                                setExpandedTeam(null);
+                                            }}
+                                        >
+                                            <option value="">Current</option>
+                                            {completedRounds.map(round => (
+                                                <option key={round.id} value={round.round_number}>
+                                                    {round.round_number}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                             </div>
                         </CardTitle>
                         <CardDescription>
-                            {viewMode === 'summary' 
-                                ? 'Individual and combined scores from both team members'
-                                : 'Round-by-round breakdown of team performance'
+                            {selectedRound !== null 
+                                ? `Standings after Round ${selectedRound} - ${completedRounds.find(r => r.round_number === selectedRound)?.name || ''}`
+                                : viewMode === 'summary' 
+                                    ? 'Individual and combined scores from both team members'
+                                    : 'Round-by-round breakdown of team performance'
                             }
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {standings.length === 0 ? (
+                        {displayStandings.length === 0 ? (
                             <div className="text-center py-12 text-muted-foreground">
                                 <Icon name="trophy" className="h-12 w-12 mx-auto mb-4 opacity-50" />
                                 <h3 className="text-lg font-medium mb-2">No teams yet</h3>
@@ -285,11 +370,11 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
                             </div>
                         ) : (
                             <div className="space-y-2">
-                                {standings.map((team) => (
+                                {displayStandings.map((team) => (
                                     <div key={team.id}>
                                         <div 
-                                            className={`flex items-center gap-4 p-4 rounded-lg border transition-all duration-200 cursor-pointer ${getPositionClass(team.position, team.is_in_progress)}`}
-                                            onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)}
+                                            className={`flex items-center gap-4 p-4 rounded-lg border transition-all duration-200 ${viewMode === 'rounds' && team.round_scores.length > 0 ? 'cursor-pointer hover:bg-muted/30' : ''} ${getPositionClass(team.position, team.is_in_progress)}`}
+                                            onClick={viewMode === 'rounds' && team.round_scores.length > 0 ? () => setExpandedTeam(expandedTeam === team.id ? null : team.id) : undefined}
                                         >
                                             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-background border font-bold text-lg">
                                                 {getPositionDisplay(team.position, ties)}
@@ -328,7 +413,9 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
                                                         <span>{team.player1.name}</span>
                                                         <Icon name="plus" className="h-3 w-3" />
                                                         <span>{team.player2.name}</span>
-                                                        <Icon name="chevron-down" className={`h-4 w-4 transition-transform ${expandedTeam === team.id ? 'rotate-180' : ''}`} />
+                                                        {team.round_scores.length > 0 && (
+                                                            <Icon name="chevron-down" className={`h-4 w-4 transition-transform ${expandedTeam === team.id ? 'rotate-180' : ''}`} />
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
@@ -342,8 +429,9 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
                                         </div>
 
                                         {/* Expanded Round Details */}
-                                        {viewMode === 'rounds' && expandedTeam === team.id && team.round_scores.length > 0 && (
+                                        {viewMode === 'rounds' && expandedTeam === team.id && team.round_scores.length > 0 && selectedRound === null && (
                                             <div className="mt-2 ml-16 mr-4 space-y-2 border-l-2 border-muted pl-4">
+                                                <div className="text-xs text-muted-foreground mb-2 font-medium">Round-by-round breakdown:</div>
                                                 {team.round_scores.map((round) => (
                                                     <div key={round.round_number} className="flex items-center justify-between py-2 border-b border-muted/30 last:border-0">
                                                         <div className="flex items-center gap-3">
@@ -371,6 +459,14 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
                                                         </div>
                                                     </div>
                                                 ))}
+                                            </div>
+                                        )}
+
+                                        {/* Historical Round View Notice */}
+                                        {selectedRound !== null && expandedTeam === team.id && (
+                                            <div className="mt-2 ml-16 mr-4 p-3 bg-muted/30 rounded border border-muted text-sm text-muted-foreground">
+                                                <Icon name="info" className="h-4 w-4 inline mr-2" />
+                                                This shows standings after Round {selectedRound}. Switch to "Current" to see round-by-round details.
                                             </div>
                                         )}
                                     </div>
