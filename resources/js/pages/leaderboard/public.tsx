@@ -58,15 +58,14 @@ interface Props {
     tournament: Tournament;
     standings: Team[];
     completedRounds: Round[];
-    allRounds: Round[];
     lastUpdated: string;
 }
 
-export default function PublicLeaderboard({ tournament, standings, completedRounds, allRounds, lastUpdated }: Props) {
+export default function PublicLeaderboard({ tournament, standings, completedRounds, lastUpdated }: Props) {
     const [autoRefresh, setAutoRefresh] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
-    const [viewMode, setViewMode] = useState<'summary' | 'rounds'>('summary');
+
     const [expandedTeam, setExpandedTeam] = useState<number | null>(null);
     const [selectedRound, setSelectedRound] = useState<number | null>(null);
 
@@ -306,32 +305,9 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
                                 )}
                             </div>
                             <div className="flex items-center gap-2">
-                                <Button
-                                    variant={viewMode === 'summary' ? 'default' : 'outline'}
-                                    size="sm"
-                                    onClick={() => {
-                                        setViewMode('summary');
-                                        setSelectedRound(null);
-                                        setExpandedTeam(null);
-                                    }}
-                                >
-                                    Summary
-                                </Button>
-                                <Button
-                                    variant={viewMode === 'rounds' ? 'default' : 'outline'}
-                                    size="sm"
-                                    onClick={() => {
-                                        setViewMode('rounds');
-                                        setSelectedRound(null);
-                                        setExpandedTeam(null);
-                                    }}
-                                    disabled={allRounds.length === 0}
-                                >
-                                    By Round
-                                </Button>
                                 {completedRounds.length > 0 && (
-                                    <div className="flex items-center gap-2 ml-2 border-l border-border pl-2">
-                                        <span className="text-sm text-muted-foreground">After Round:</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-muted-foreground">View After Round:</span>
                                         <select 
                                             className="px-2 py-1 text-sm border border-border rounded bg-background text-foreground"
                                             value={selectedRound || ''}
@@ -339,12 +315,13 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
                                                 const value = e.target.value;
                                                 setSelectedRound(value ? parseInt(value) : null);
                                                 setExpandedTeam(null);
+                                                // Clear expanded team when changing rounds
                                             }}
                                         >
-                                            <option value="">Current</option>
+                                            <option value="">Current Standings</option>
                                             {completedRounds.map(round => (
                                                 <option key={round.id} value={round.round_number}>
-                                                    {round.round_number}
+                                                    After Round {round.round_number}
                                                 </option>
                                             ))}
                                         </select>
@@ -355,9 +332,7 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
                         <CardDescription>
                             {selectedRound !== null 
                                 ? `Standings after Round ${selectedRound} - ${completedRounds.find(r => r.round_number === selectedRound)?.name || ''}`
-                                : viewMode === 'summary' 
-                                    ? 'Individual and combined scores from both team members'
-                                    : 'Round-by-round breakdown of team performance'
+                                : 'Current tournament standings with round-by-round details'
                             }
                         </CardDescription>
                     </CardHeader>
@@ -373,8 +348,8 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
                                 {displayStandings.map((team) => (
                                     <div key={team.id}>
                                         <div 
-                                            className={`flex items-center gap-4 p-4 rounded-lg border transition-all duration-200 ${viewMode === 'rounds' && team.round_scores.length > 0 ? 'cursor-pointer hover:bg-muted/30' : ''} ${getPositionClass(team.position, team.is_in_progress)}`}
-                                            onClick={viewMode === 'rounds' && team.round_scores.length > 0 ? () => setExpandedTeam(expandedTeam === team.id ? null : team.id) : undefined}
+                                            className={`flex items-center gap-4 p-4 rounded-lg border transition-all duration-200 ${team.round_scores.length > 0 ? 'cursor-pointer hover:bg-muted/30' : ''} ${getPositionClass(team.position, team.is_in_progress)}`}
+                                            onClick={team.round_scores.length > 0 ? () => setExpandedTeam(expandedTeam === team.id ? null : team.id) : undefined}
                                         >
                                             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-background border font-bold text-lg">
                                                 {getPositionDisplay(team.position, ties)}
@@ -391,33 +366,25 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
                                                     )}
                                                 </div>
                                                 
-                                                {viewMode === 'summary' ? (
-                                                    <div className="space-y-1">
-                                                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                                            <span className="flex items-center gap-1">
-                                                                {team.player1.name}
-                                                                <span className="font-mono text-xs">({team.player1_individual_score}pts)</span>
-                                                            </span>
-                                                            <Icon name="plus" className="h-3 w-3" />
-                                                            <span className="flex items-center gap-1">
-                                                                {team.player2.name}
-                                                                <span className="font-mono text-xs">({team.player2_individual_score}pts)</span>
-                                                            </span>
-                                                        </div>
-                                                        <div className="text-xs text-muted-foreground">
-                                                            {team.player1_games_played + team.player2_games_played} total games played
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                        <span>{team.player1.name}</span>
+                                                <div className="space-y-1">
+                                                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                                        <span className="flex items-center gap-1">
+                                                            {team.player1.name}
+                                                            <span className="font-mono text-xs">({team.player1_individual_score}pts)</span>
+                                                        </span>
                                                         <Icon name="plus" className="h-3 w-3" />
-                                                        <span>{team.player2.name}</span>
+                                                        <span className="flex items-center gap-1">
+                                                            {team.player2.name}
+                                                            <span className="font-mono text-xs">({team.player2_individual_score}pts)</span>
+                                                        </span>
                                                         {team.round_scores.length > 0 && (
                                                             <Icon name="chevron-down" className={`h-4 w-4 transition-transform ${expandedTeam === team.id ? 'rotate-180' : ''}`} />
                                                         )}
                                                     </div>
-                                                )}
+                                                    <div className="text-xs text-muted-foreground">
+                                                        {team.player1_games_played + team.player2_games_played} total games played
+                                                    </div>
+                                                </div>
                                             </div>
 
                                             <div className="text-right">
@@ -429,7 +396,7 @@ export default function PublicLeaderboard({ tournament, standings, completedRoun
                                         </div>
 
                                         {/* Expanded Round Details */}
-                                        {viewMode === 'rounds' && expandedTeam === team.id && team.round_scores.length > 0 && selectedRound === null && (
+                                        {expandedTeam === team.id && team.round_scores.length > 0 && selectedRound === null && (
                                             <div className="mt-2 ml-16 mr-4 space-y-2 border-l-2 border-muted pl-4">
                                                 <div className="text-xs text-muted-foreground mb-2 font-medium">Round-by-round breakdown:</div>
                                                 {team.round_scores.map((round) => (

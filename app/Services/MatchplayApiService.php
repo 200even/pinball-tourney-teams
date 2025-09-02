@@ -13,7 +13,7 @@ class MatchplayApiService
 
     public function __construct(private User $user)
     {
-        if (!$user->hasMatchplayToken()) {
+        if (! $user->hasMatchplayToken()) {
             throw new \InvalidArgumentException('User must have a Matchplay API token');
         }
     }
@@ -55,6 +55,7 @@ class MatchplayApiService
 
         if ($response->successful()) {
             $data = $response->json();
+
             // The API returns data in a 'data' key according to the docs
             return $data['data'] ?? [];
         }
@@ -71,6 +72,7 @@ class MatchplayApiService
 
         if ($response->successful()) {
             $data = $response->json();
+
             return $data['data'] ?? [];
         }
 
@@ -100,6 +102,7 @@ class MatchplayApiService
 
         if ($response->successful()) {
             $data = $response->json();
+
             return $data['user'] ?? null;
         }
 
@@ -112,11 +115,11 @@ class MatchplayApiService
     public function getPlayers(?string $status = null, ?array $playerIds = null): array
     {
         $queryParams = [];
-        
+
         if ($status) {
             $queryParams['status'] = $status;
         }
-        
+
         if ($playerIds && is_array($playerIds)) {
             // Limit to 25 players per API docs
             $playerIds = array_slice($playerIds, 0, 25);
@@ -127,6 +130,7 @@ class MatchplayApiService
 
         if ($response->successful()) {
             $data = $response->json();
+
             return $data['data'] ?? [];
         }
 
@@ -156,6 +160,7 @@ class MatchplayApiService
 
         if ($response->successful()) {
             $data = $response->json();
+
             return $data['data'] ?? [];
         }
 
@@ -171,6 +176,7 @@ class MatchplayApiService
 
         if ($response->successful()) {
             $data = $response->json();
+
             return $data['data'] ?? [];
         }
 
@@ -212,14 +218,14 @@ class MatchplayApiService
     {
         $standings = $this->getTournamentStandings($tournamentId);
         $players = [];
-        
+
         // Extract player IDs from standings
-        $playerIds = array_map(fn($standing) => $standing['playerId'], $standings);
-        
+        $playerIds = array_map(fn ($standing) => $standing['playerId'], $standings);
+
         // Try to get player details in batches of 25 (API limit)
         $playerProfiles = [];
         $chunks = array_chunk($playerIds, 25);
-        
+
         foreach ($chunks as $chunk) {
             $profiles = $this->getPlayers(null, $chunk);
             foreach ($profiles as $profile) {
@@ -232,7 +238,7 @@ class MatchplayApiService
             if (isset($standing['playerId'])) {
                 $playerId = $standing['playerId'];
                 $profile = $playerProfiles[$playerId] ?? null;
-                
+
                 $players[] = [
                     'playerId' => $playerId,
                     'name' => $profile['name'] ?? "Player {$playerId}",
@@ -254,28 +260,76 @@ class MatchplayApiService
      */
     public function getPlayerRoundScores(string $tournamentId, int $playerId): array
     {
-        $games = $this->getPlayerStats($tournamentId, $playerId);
-        $rounds = $this->getTournamentRounds($tournamentId);
-        
-        $roundScores = [];
-        
-        foreach ($rounds as $round) {
-            $roundGames = collect($games['data'] ?? [])
-                ->where('roundId', $round['roundId']);
-            
-            $roundScore = [
-                'roundId' => $round['roundId'],
-                'roundNumber' => $round['index'] + 1,
-                'roundName' => $round['name'],
-                'points' => $roundGames->sum('points'),
-                'gamesPlayed' => $roundGames->count(),
-                'games' => $roundGames->toArray(),
-            ];
-            
-            $roundScores[] = $roundScore;
+        try {
+            // Get all tournament games instead of player-specific endpoint
+            $allGames = $this->getTournamentGames($tournamentId);
+            $rounds = $this->getTournamentRounds($tournamentId);
+
+            if (empty($allGames) || empty($rounds)) {
+                return [];
+            }
+
+            // Filter games for this specific player
+            $playerGames = collect($allGames)->filter(function ($game) use ($playerId) {
+                // Check if player is in this game using playerIds array
+                $playerIds = $game['playerIds'] ?? [];
+
+                return in_array($playerId, $playerIds);
+            });
+
+            $roundScores = [];
+
+            foreach ($rounds as $round) {
+                // Filter player's games for this specific round
+                $roundGames = $playerGames->where('roundId', $round['roundId']);
+
+                // Calculate points for this player in this round
+                $roundPoints = 0;
+                $roundGamesCount = 0;
+                $gameDetails = [];
+
+                foreach ($roundGames as $game) {
+                    // Find this player's position in the playerIds array
+                    $playerIds = $game['playerIds'] ?? [];
+                    $playerIndex = array_search($playerId, $playerIds);
+
+                    if ($playerIndex !== false) {
+                        // Get the corresponding points and position for this player
+                        $points = ($game['resultPoints'] ?? [])[$playerIndex] ?? 0;
+                        $position = ($game['resultPositions'] ?? [])[$playerIndex] ?? null;
+
+                        $roundPoints += $points;
+                        $roundGamesCount++;
+                        $gameDetails[] = [
+                            'gameId' => $game['gameId'] ?? null,
+                            'points' => $points,
+                            'position' => $position,
+                        ];
+                    }
+                }
+
+                $roundScore = [
+                    'roundId' => $round['roundId'],
+                    'roundNumber' => $round['index'] + 1,
+                    'roundName' => $round['name'],
+                    'points' => $roundPoints,
+                    'gamesPlayed' => $roundGamesCount,
+                    'games' => $gameDetails,
+                ];
+
+                $roundScores[] = $roundScore;
+            }
+
+            return $roundScores;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to get player round scores', [
+                'tournament_id' => $tournamentId,
+                'player_id' => $playerId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
         }
-        
-        return $roundScores;
     }
 
     /**
@@ -287,6 +341,7 @@ class MatchplayApiService
 
         if ($response->successful()) {
             $data = $response->json();
+
             return $data['data'] ?? $data;
         }
 
@@ -298,10 +353,10 @@ class MatchplayApiService
      */
     private function makeRequest(string $endpoint, string $method = 'GET', array $params = []): Response
     {
-        $url = self::BASE_URL . '/' . ltrim($endpoint, '/');
+        $url = self::BASE_URL.'/'.ltrim($endpoint, '/');
 
         $httpClient = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->user->matchplay_api_token,
+            'Authorization' => 'Bearer '.$this->user->matchplay_api_token,
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
         ]);
@@ -314,7 +369,7 @@ class MatchplayApiService
             default => $httpClient->get($url, $params),
         };
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             Log::warning('Matchplay API request failed', [
                 'endpoint' => $endpoint,
                 'method' => $method,
@@ -335,12 +390,14 @@ class MatchplayApiService
     {
         try {
             $response = $this->makeRequest('dashboard');
+
             return $response->successful();
         } catch (\Exception $e) {
             Log::error('Matchplay API connection test failed', [
                 'error' => $e->getMessage(),
                 'user_id' => $this->user->id,
             ]);
+
             return false;
         }
     }
