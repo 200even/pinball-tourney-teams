@@ -72,6 +72,20 @@ class Tournament extends Model
                         ->select('player2_id')
                         ->from('teams')
                         ->where('tournament_id', $this->id)
+                )
+                ->union(
+                    $query->newQuery()
+                        ->select('player3_id')
+                        ->from('teams')
+                        ->where('tournament_id', $this->id)
+                        ->whereNotNull('player3_id')
+                )
+                ->union(
+                    $query->newQuery()
+                        ->select('player4_id')
+                        ->from('teams')
+                        ->where('tournament_id', $this->id)
+                        ->whereNotNull('player4_id')
                 );
         });
     }
@@ -84,7 +98,7 @@ class Tournament extends Model
     public function calculateStandings(): array
     {
         return $this->teams()
-            ->with(['player1', 'player2'])
+            ->with(['player1', 'player2', 'player3', 'player4'])
             ->orderByDesc('total_points')
             ->orderByDesc('games_played')
             ->get()
@@ -98,6 +112,8 @@ class Tournament extends Model
                     'position' => $index + 1,
                     'player1' => $team->player1,
                     'player2' => $team->player2,
+                    'player3' => $team->player3,
+                    'player4' => $team->player4,
                 ];
             })
             ->toArray();

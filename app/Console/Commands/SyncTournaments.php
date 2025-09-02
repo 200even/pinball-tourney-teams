@@ -184,12 +184,20 @@ class SyncTournaments extends Command
                     $roundData = [];
                     $gamesData = [];
 
-                    // Collect data for each player
-                    for ($i = 0; $i < 4; $i++) {
+                    // Collect data for each player (only for players that exist on the team)
+                    $playerCount = $team->players()->count();
+                    for ($i = 0; $i < $playerCount; $i++) {
                         $playerRoundData = $playerScoresByRound[$i]?->get($round->round_number, []) ?? [];
                         $roundData['player'.($i + 1).'_points'] = $playerRoundData['points'] ?? 0;
                         $roundData['player'.($i + 1).'_games_played'] = $playerRoundData['gamesPlayed'] ?? 0;
                         $gamesData['player'.($i + 1).'_games'] = $playerRoundData['games'] ?? [];
+                    }
+
+                    // Ensure all 4 player fields exist (set to 0 for missing players)
+                    for ($i = $playerCount; $i < 4; $i++) {
+                        $roundData['player'.($i + 1).'_points'] = 0;
+                        $roundData['player'.($i + 1).'_games_played'] = 0;
+                        $gamesData['player'.($i + 1).'_games'] = [];
                     }
 
                     // Create or update the team round score record

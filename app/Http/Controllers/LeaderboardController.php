@@ -26,6 +26,8 @@ class LeaderboardController extends Controller
             // Get individual player data from Matchplay API if available
             $player1Data = $this->getPlayerScoreData($tournament, $team->player1);
             $player2Data = $this->getPlayerScoreData($tournament, $team->player2);
+            $player3Data = $team->player3 ? $this->getPlayerScoreData($tournament, $team->player3) : null;
+            $player4Data = $team->player4 ? $this->getPlayerScoreData($tournament, $team->player4) : null;
 
             // Get round-by-round scores
             $roundScores = $team->roundScores->map(function ($roundScore) {
@@ -34,6 +36,8 @@ class LeaderboardController extends Controller
                     'round_name' => $roundScore->round->name,
                     'player1_points' => $roundScore->player1_points,
                     'player2_points' => $roundScore->player2_points,
+                    'player3_points' => $roundScore->player3_points ?? 0,
+                    'player4_points' => $roundScore->player4_points ?? 0,
                     'total_points' => $roundScore->total_points,
                     'round_status' => $roundScore->round->status,
                 ];
@@ -44,6 +48,10 @@ class LeaderboardController extends Controller
                 'player1_games_played' => $player1Data['gamesPlayed'] ?? 0,
                 'player2_individual_score' => $player2Data['points'] ?? 0,
                 'player2_games_played' => $player2Data['gamesPlayed'] ?? 0,
+                'player3_individual_score' => $player3Data['points'] ?? 0,
+                'player3_games_played' => $player3Data['gamesPlayed'] ?? 0,
+                'player4_individual_score' => $player4Data['points'] ?? 0,
+                'player4_games_played' => $player4Data['gamesPlayed'] ?? 0,
                 'round_scores' => $roundScores,
                 'is_in_progress' => $team->roundScores->some(fn ($rs) => $rs->round->status === 'active'),
             ]);
@@ -197,12 +205,20 @@ class LeaderboardController extends Controller
                     $roundData = [];
                     $gamesData = [];
 
-                    // Collect data for each player
-                    for ($i = 0; $i < 4; $i++) {
+                    // Collect data for each player (only for players that exist on the team)
+                    $playerCount = $team->players()->count();
+                    for ($i = 0; $i < $playerCount; $i++) {
                         $playerRoundData = $playerScoresByRound[$i]?->get($round->round_number, []) ?? [];
                         $roundData['player'.($i + 1).'_points'] = $playerRoundData['points'] ?? 0;
                         $roundData['player'.($i + 1).'_games_played'] = $playerRoundData['gamesPlayed'] ?? 0;
                         $gamesData['player'.($i + 1).'_games'] = $playerRoundData['games'] ?? [];
+                    }
+
+                    // Ensure all 4 player fields exist (set to 0 for missing players)
+                    for ($i = $playerCount; $i < 4; $i++) {
+                        $roundData['player'.($i + 1).'_points'] = 0;
+                        $roundData['player'.($i + 1).'_games_played'] = 0;
+                        $gamesData['player'.($i + 1).'_games'] = [];
                     }
 
                     // Create or update the team round score record
