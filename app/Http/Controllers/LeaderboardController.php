@@ -203,6 +203,9 @@ class LeaderboardController extends Controller
     private function syncTeamRoundScores(Tournament $tournament, \App\Services\MatchplayApiService $matchplayService): void
     {
         try {
+            // First, sync rounds from Matchplay API to ensure we have all rounds
+            $this->syncRoundsFromApi($tournament, $matchplayService);
+
             // Get all completed rounds for this tournament
             $completedRounds = $tournament->rounds()->where('status', 'completed')->get();
 
@@ -264,6 +267,30 @@ class LeaderboardController extends Controller
         } catch (\Exception $e) {
             // Log the error but don't fail the entire update process
             \Illuminate\Support\Facades\Log::warning('Failed to sync team round scores: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Sync rounds from Matchplay API to ensure we have all rounds in database
+     */
+    private function syncRoundsFromApi(Tournament $tournament, \App\Services\MatchplayApiService $matchplayService): void
+    {
+        $roundsData = $matchplayService->getTournamentRounds($tournament->matchplay_tournament_id);
+
+        foreach ($roundsData as $roundData) {
+            \App\Models\Round::updateOrCreate(
+                [
+                    'tournament_id' => $tournament->id,
+                    'matchplay_round_id' => $roundData['roundId'],
+                ],
+                [
+                    'round_number' => $roundData['index'] + 1,
+                    'name' => $roundData['name'],
+                    'status' => $roundData['status'],
+                    'completed_at' => $roundData['completedAt'] ? now()->parse($roundData['completedAt']) : null,
+                    'matchplay_data' => $roundData,
+                ]
+            );
         }
     }
 }
