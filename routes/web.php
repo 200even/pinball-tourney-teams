@@ -619,3 +619,47 @@ Route::middleware(['auth', 'verified'])->group(function () {
 require __DIR__.'/tournaments.php';
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
+
+// Simple login test page
+Route::get('/test-login', function () {
+    return '
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login Test</title>
+    <meta name="csrf-token" content="' . csrf_token() . '">
+</head>
+<body>
+    <h2>Login Test</h2>
+    <form method="POST" action="/login">
+        <input type="hidden" name="_token" value="' . csrf_token() . '">
+        <div>
+            <label>Email:</label><br>
+            <input type="email" name="email" value="debug@test.com" required>
+        </div>
+        <div>
+            <label>Password:</label><br>
+            <input type="password" name="password" value="password123" required>
+        </div>
+        <div>
+            <input type="checkbox" name="remember" value="1">
+            <label>Remember me</label>
+        </div>
+        <div>
+            <button type="submit">Login</button>
+        </div>
+    </form>
+    
+    <h3>Test Credentials:</h3>
+    <p>Email: debug@test.com</p>
+    <p>Password: password123</p>
+    
+    <h3>Available Users:</h3>
+    <ul>' . 
+    collect(\App\Models\User::all())->map(function($user) {
+        return '<li>' . $user->email . ' (ID: ' . $user->id . ', Created: ' . $user->created_at . ')</li>';
+    })->join('') . 
+    '</ul>
+</body>
+</html>';
+});
