@@ -355,6 +355,59 @@ Route::get('/reset-password-form', function () {
 </html>';
 })->withoutMiddleware(['web']);
 
+// Reset user password form (GET)
+Route::get('/reset-user-password', function () {
+    return '
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reset User Password</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        form { max-width: 400px; }
+        div { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        button { background: #007cba; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #005a87; }
+        .users { margin-top: 30px; }
+        .users li { margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+    <h2>Reset User Password</h2>
+    <form method="POST" action="/reset-user-password">
+        <input type="hidden" name="_token" value="' . csrf_token() . '">
+        <div>
+            <label for="email">Email:</label>
+            <input type="email" name="email" id="email" required>
+        </div>
+        <div>
+            <label for="new_password">New Password:</label>
+            <input type="password" name="new_password" id="new_password" required>
+        </div>
+        <div>
+            <button type="submit">Reset Password</button>
+        </div>
+    </form>
+    
+    <div class="users">
+        <h3>Available Users:</h3>
+        <ul>' . 
+        collect(\App\Models\User::all())->map(function($user) {
+            return '<li><strong>' . $user->email . '</strong> (ID: ' . $user->id . ', Created: ' . $user->created_at->format('Y-m-d H:i') . ')</li>';
+        })->join('') . 
+        '</ul>
+    </div>
+    
+    <div style="margin-top: 30px; padding: 15px; background: #f0f8ff; border-left: 4px solid #007cba;">
+        <h4>Quick Test:</h4>
+        <p>Try resetting the password for <strong>debug@test.com</strong> to <strong>newpassword123</strong></p>
+    </div>
+</body>
+</html>';
+})->withoutMiddleware(['web']);
+
 // Reset user password for debugging
 Route::post('/reset-user-password', function (\Illuminate\Http\Request $request) {
     try {
@@ -382,13 +435,38 @@ Route::post('/reset-user-password', function (\Illuminate\Http\Request $request)
             'email_verified_at' => now(),
         ]);
         
-        return response()->json([
-            'success' => true,
-            'message' => 'Password reset and email verified successfully',
-            'user_id' => $user->id,
-            'email' => $user->email,
-            'new_password' => $newPassword,
-        ], 200, [], JSON_PRETTY_PRINT);
+        return '
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Password Reset Success</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .success { padding: 20px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px; color: #155724; }
+        .credentials { margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 4px; }
+        .button { display: inline-block; margin-top: 15px; padding: 10px 20px; background: #007cba; color: white; text-decoration: none; border-radius: 4px; }
+        .button:hover { background: #005a87; }
+    </style>
+</head>
+<body>
+    <div class="success">
+        <h2>✅ Password Reset Successful!</h2>
+        <p><strong>User:</strong> ' . $user->email . '</p>
+        <p><strong>User ID:</strong> ' . $user->id . '</p>
+        <p><strong>Email Verified:</strong> Yes</p>
+    </div>
+    
+    <div class="credentials">
+        <h3>🔑 New Login Credentials:</h3>
+        <p><strong>Email:</strong> ' . $user->email . '</p>
+        <p><strong>Password:</strong> ' . $newPassword . '</p>
+    </div>
+    
+    <a href="/login" class="button">Go to Login Page</a>
+    <a href="/test-login" class="button">Test Login</a>
+    <a href="/reset-user-password" class="button">Reset Another Password</a>
+</body>
+</html>';
         
     } catch (\Exception $e) {
         return response()->json([
